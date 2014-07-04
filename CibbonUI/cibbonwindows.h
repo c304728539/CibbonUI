@@ -35,7 +35,7 @@ namespace cibbonui{
 	public:
 		using winfunc = std::function<LRESULT CALLBACK(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)>;
 		cuiwindowbase();
-		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW & ~WS_CAPTION &~ WS_SYSMENU &~WS_SIZEBOX, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
+		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		virtual ~cuiwindowbase();
 		void run();
 
@@ -54,7 +54,7 @@ namespace cibbonui{
 		
 		static LRESULT CALLBACK WndProc
 			(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
-		std::map <UINT, std::function<LRESULT CALLBACK(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)>> windowmessage;
+		std::map <UINT, winfunc> windowmessage;
 		HINSTANCE hInst;
 		HWND m_hWnd;
 		std::wstring title;
@@ -65,17 +65,16 @@ namespace cibbonui{
 		std::shared_ptr<controllermanager> pmanager;
 	};
 
-	class  cuistdwindow:public cuiwindowbase
+	class  cuistdwindow : public cuiwindowbase
 	{
 		//using cuiwindowbase::winfunc;
 	public:
 		 cuistdwindow();
-		 cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW & ~WS_CAPTION &~WS_SYSMENU &~WS_SIZEBOX, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
+		 cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW , cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		~cuistdwindow();
 	protected:
 		void initevents() override;
 	private:
-		winfunc closefunc;
 
 	};
 
