@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include "cibbonwindows.h"
+#include "cuirendermanager.h"
 using namespace std;
 
 namespace cibbonui
