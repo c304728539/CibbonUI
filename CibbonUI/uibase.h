@@ -1,4 +1,4 @@
-
+#include "stdafx.h"
 namespace cibbonui
 {
 	using cint = __int32;

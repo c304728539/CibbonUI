@@ -1,6 +1,6 @@
 
 #pragma once
-#include "uibase.h"
+#include "cuirendermanager.h"
 
 namespace cibbonui{
 
@@ -48,7 +48,7 @@ namespace cibbonui{
 		}*/
 		void addevents(UINT Message, winfunc Func);
 		
-		void init();
+		virtual void init();
 		void runmessageloop();
 	private:
 		

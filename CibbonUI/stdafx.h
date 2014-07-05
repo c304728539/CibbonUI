@@ -37,6 +37,9 @@
 #include <algorithm>
 #include <iterator>
 #include <cmath>
-
+#include <d2d1.h>
+#include <d2d1helper.h>
+#include <wincodec.h>
+#include <dwrite.h>
 
 // TODO:  在此处引用程序需要的其他头文件

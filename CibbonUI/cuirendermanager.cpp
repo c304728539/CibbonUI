@@ -1,12 +1,12 @@
-#include "stdafx.h"
+
 #include "cuirendermanager.h"
-#include "uibase.h"
+
 
 namespace cibbonui{
 	using namespace std;
 	using namespace D2D1;
 
-	shared_ptr<cuirendermanager> cuirendermanager::pManager = nullptr;
+	shared_ptr<cuirendermanager> cuirendermanager::pManager(new cuirendermanager);
 	template<class Interface>
 	inline void Free(Interface **ppInterfaceToRelease)
 	{
@@ -28,13 +28,11 @@ namespace cibbonui{
 	{
 		Free(&pD2DFactory);
 		Free(&pRT);
-		for_each(brushmap.begin(), brushmap.end(), [](std::map<int, ID2D1SolidColorBrush*>::iterator it)->void{it->second->Release(); });
+		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{pr.second->Release(); });
 	}
 
 	std::shared_ptr<cuirendermanager> cuirendermanager::getManager(HWND hWnd)
 	{
-		if (!pManager)
-			pManager = make_shared<cuirendermanager>(hWnd);
 		return pManager;
 	}
 
@@ -133,7 +131,7 @@ namespace cibbonui{
 		pRT->FillRectangle(rect, getBrush(color));
 	}
 
-	void cuirendermanager::drawtext(wstring text, cint fontsize, const CRect& _rect, decltype(Alignmentcenter) Alig , cint Color)
+	void cuirendermanager::drawtext(wstring text, cint fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
 		auto pFormat = getFormat(fontsize);
 		pFormat->SetTextAlignment(Alig);

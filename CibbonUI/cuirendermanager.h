@@ -1,12 +1,11 @@
 #pragma once
 
-#include <d2d1.h>
-#include <d2d1helper.h>
-#include <wincodec.h>
-#include <dwrite.h>
+#include "uibase.h"
+
 namespace cibbonui{
 	class cuirendermanager
 	{
+		friend class std::shared_ptr<cuirendermanager>;
 
 	public:
 		
@@ -18,7 +17,7 @@ namespace cibbonui{
 		void drawrect(const CPointf& ltop, const CPointf& rbottom, float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void FillRect(const D2D1_RECT_F& rect, int color = D2D1::ColorF::White);
-		void drawtext(wstring text, cint fontsize, const CRect& _rect, decltype(Alignmentcenter) Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
+		void drawtext(std::wstring text, cint fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
 	private:
 
 		cuirendermanager() = default;
@@ -37,7 +36,7 @@ namespace cibbonui{
 		void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
 		ID2D1SolidColorBrush* getBrush(int color);
-		IDWriteTextFormat* getFormat(int fontsize, wstring fontname = L"Microsoft YaHei");
+		IDWriteTextFormat* getFormat(cint fontsize, std::wstring fontname = L"Microsoft YaHei");
 	};
 
 
