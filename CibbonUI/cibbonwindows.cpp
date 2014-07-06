@@ -17,8 +17,8 @@ namespace cibbonui
 		width(_width),
 		height(_height),
 		realstyle(_style),
-		pmanager(new controllermanager()),
-		windowmessage()
+		windowmessage(),
+		subject()
 	{
 	}
 
@@ -98,8 +98,6 @@ namespace cibbonui
 				{
 					return it->second(hWnd, Message, wParam, lParam);
 				}
-					
-				pwindow->pmanager->handlemessage(hWnd, Message, wParam, lParam);
 			}
 		}
 		return ::DefWindowProc(hWnd, Message, wParam, lParam);
@@ -136,40 +134,86 @@ namespace cibbonui
 			return::DefWindowProc(hWnd, Message, wParam, lParam);
 		}
 		);
+		addevents(WM_LBUTTONDOWN, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+			cuibuttonevent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventname = cuieventenum::lbuttondown;
+			notifyobservers(&bevent);
+		});
+		addevents(WM_LBUTTONUP, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+			cuibuttonevent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventname = cuieventenum::lbuttonup;
+			notifyobservers(&bevent);
+		});
+		addevents(WM_RBUTTONDOWN, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+			cuibuttonevent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventname = cuieventenum::lbuttondown;
+			notifyobservers(&bevent);
+		});
+		addevents(WM_RBUTTONUP, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+			cuibuttonevent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventname = cuieventenum::rbuttonup;
+			notifyobservers(&bevent);
+		});
+		addevents(WM_LBUTTONDBLCLK, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+			cuibuttonevent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventname = cuieventenum::lbuttondoubleclick;
+			notifyobservers(&bevent);
+		});
 	}
 
-	controllermanager::controllermanager(){}
 
-	controllermanager::~controllermanager(){}
+	//controllermanager::controllermanager(){}
 
-	LRESULT controllermanager::handlemessage(
-		HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
+	//controllermanager::~controllermanager(){}
+
+	//LRESULT controllermanager::handlemessage(
+	//	HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
+	//{
+	//	//this->notifyobservers();
+	//	//这里应该只处理控件事件
+	//	/*if (Message == WM_DESTROY)
+	//	{
+	//		PostQuitMessage(0);
+	//	}*/
+	//	return ::DefWindowProc(hWnd, Message, wParam, lParam);
+	//}
+
+	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
+		:observer(), 
+		subject(), 
+		iffocus(false), 
+		Position(_Position), 
+		windowtext(_text),
+		ifenabled(Enable),
+		pPatternManager(_pPatternManager)
 	{
-		//this->notifyobservers();
-		//这里应该只处理控件事件
-		/*if (Message == WM_DESTROY)
+
+	}
+
+	void cibboncontrolbase::HandleNotify(cuieventbase* pceb)
+	{
+		auto it = EventHandler.find(pceb->eventname);
+		if ( it != EventHandler.end())
 		{
-			PostQuitMessage(0);
-		}*/
-		return ::DefWindowProc(hWnd, Message, wParam, lParam);
-	}
-
-	void controllermanager::registerobserver(observer* obs)
-	{
-		observers.push_back(obs);
-	}
-
-	void controllermanager::removeobserver()
-	{
-		observers.pop_back();
-	}
-
-	void controllermanager::notifyobservers(cuievent* )
-	{
-		for (auto it : observers)
-		{
-			it->update();
+			return it->second(pceb);
 		}
 	}
+
+	cuibutton::cuibutton(HWND hWnd, PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
+		:cibboncontrolbase(new ButtonPattern(hWnd),_Position, _text, Enable)
+	{
+
+	}
+
+	void cuibutton::initevents()
+	{
+
+	}
+
 }
 

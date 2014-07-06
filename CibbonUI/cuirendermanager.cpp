@@ -6,7 +6,7 @@ namespace cibbonui{
 	using namespace std;
 	using namespace D2D1;
 
-	shared_ptr<cuirendermanager> cuirendermanager::pManager(new cuirendermanager);
+	shared_ptr<cuirendermanager> cuirendermanager::pManager(nullptr);
 	template<class Interface>
 	inline void Free(Interface **ppInterfaceToRelease)
 	{
@@ -33,6 +33,8 @@ namespace cibbonui{
 
 	std::shared_ptr<cuirendermanager> cuirendermanager::getManager(HWND hWnd)
 	{
+		if (!pManager)
+			cuirendermanager::pManager = shared_ptr<cuirendermanager>(new cuirendermanager(hWnd));
 		return pManager;
 	}
 
@@ -147,9 +149,22 @@ namespace cibbonui{
 
 
 
-	LayoutManagerBase::LayoutManagerBase(HWND hWnd) :pRendermanager(cuirendermanager::getManager(hWnd))
+	PatternManagerBase::PatternManagerBase(HWND hWnd) :pRendermanager(cuirendermanager::getManager(hWnd))
 	{
 
 	}
+
+	ButtonPattern::ButtonPattern(HWND hWnd) : PatternManagerBase(hWnd)
+	{
+
+	}
+
+	mininumbuttonPattern::mininumbuttonPattern(HWND hWnd) : ButtonPattern(hWnd)
+	{
+
+	}
+
+	mininumbuttonPattern::
+	
 }
 

@@ -18,7 +18,12 @@ namespace cibbonui
 	enum cuieventenum
 	{
 		//待添加的事件
-		buttonclick,
+		lbuttondown,
+		lbuttonup,
+		rbuttondown,
+		rbuttonup,
+		lbuttondoubleclick,
+		rightbuttonclick
 
 	};
 
@@ -26,14 +31,27 @@ namespace cibbonui
 	const auto Alignmentleft = DWRITE_TEXT_ALIGNMENT_LEADING;
 	const auto Alignmentright = DWRITE_TEXT_ALIGNMENT_TRAILING;
 
-	struct cuievent
+	//struct cuievent
+	//{
+	//	//事件的必要信息
+	//	HWND hWnd;
+	//	cuieventenum Event;
+	//	WPARAM wParam;
+	//	LPARAM lParam;
+	//};
+
+	struct cuieventbase
 	{
-		//事件的必要信息
-		HWND hWnd;
-		cuieventenum Event;
-		WPARAM wParam;
-		LPARAM lParam;
+		cuieventenum eventname;
+		virtual ~cuieventbase() = default;
 	};
+	struct cuibuttonevent : public cuieventbase
+	{
+		CPointf eventposition;
+		
+		//待添加？
+	};
+
 
 	using win32 =  std::tuple<HWND, UINT, WPARAM, LPARAM>;
 

@@ -13,9 +13,21 @@ namespace cibbonui{
 	{
 		//提供接口
 	public:
-		virtual void registerobserver(observer*) = 0;
-		virtual void removeobserver() = 0;
-		virtual void notifyobservers(cuievent*) = 0;
+		virtual void registerobserver(observer* po)
+		{
+			Observers.push_back(po);
+		}
+		virtual void removeobserver()
+		{
+			if (!Observers.empty()) Observers.pop_back();
+		}
+		virtual void notifyobservers(cuieventbase* pce)
+		{
+			for_each(Observers.begin(), Observers.end(), [pce](observer* po)->void { po->HandleNotify(pce); });
+		}
+		virtual ~subject() = default;
+	protected:
+		std::vector<observer*> Observers;
 	};
 
 	class observer
@@ -23,13 +35,13 @@ namespace cibbonui{
 	public:
 		observer();
 		~observer();
-		virtual void update() = 0;
+		virtual void HandleNotify(cuieventbase*) = 0;//Core
 
 	private:
 
 	};
 
-	class cuiwindowbase
+	class cuiwindowbase : public subject
 	{
 		
 	public:
@@ -62,7 +74,7 @@ namespace cibbonui{
 		cint width;
 		cint height;
 		cstyle realstyle;
-		std::shared_ptr<controllermanager> pmanager;
+		//std::shared_ptr<controllermanager> pmanager;
 	};
 
 	class  cuistdwindow : public cuiwindowbase
@@ -75,7 +87,7 @@ namespace cibbonui{
 	protected:
 		void initevents() override;
 	private:
-
+		
 	};
 
 
@@ -83,38 +95,85 @@ namespace cibbonui{
 	{
 		using eventcontainer = std::map<cint, std::vector<std::function<void(void*)>>>;
 	public:
-		cibbonevent() :pevents(new eventcontainer)
-		{};
-		void doevent();
+		//cibbonevent() :pevents(new eventcontainer)
+		//{};
+		//void doevent();
 		~cibbonevent(){};
-		cibbonevent& operator+=(std::function<void(void*)>);
+		//cibbonevent& operator+=(std::function<void(void*)>);
 	private:
-		std::shared_ptr<eventcontainer> pevents;//每个事件的队列
+		//std::shared_ptr<eventcontainer> pevents;//每个事件的队列
 	};
 
-	class controllermanager : public subject
-	{
-	public:
-		controllermanager();
-		~controllermanager();
-		LRESULT handlemessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);//负责分发消息，真正意义上的观察者
-		void registerobserver(observer*) override;
-		void removeobserver() override;
-		void notifyobservers(cuievent* pcuievent) override;
-	private:
-		std::vector<observer*> observers;
-		
+	//class controllermanager : public subject
+	//{
+	//public:
+	//	controllermanager();
+	//	~controllermanager();
+	//	LRESULT handlemessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);//负责分发消息，真正意义上的观察者
+	//	void registerobserver(observer*) override;
+	//	void removeobserver() override;
+	//	void notifyobservers(cuieventbase* pcuievent) override;
+	//private:
+	//	std::vector<observer*> observers;
+	//	
 
-	};
+	//};
 
-	class cibboncontrolbase :public observer
+	class cibboncontrolbase :public observer,public subject
 	{
 	public:
 		cibboncontrolbase();
-		~cibboncontrolbase();
-		void update() override;
+		cibboncontrolbase(PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
+		virtual ~cibboncontrolbase() = default;
+		//void update(cuieventbase*) override;
+		/*void registerobserver(observer*) override ;
+		void removeobserver() override;
+		void notifyobservers(cuieventbase*) override;*/
+		void HandleNotify(cuieventbase*) override;
+		virtual void initevents() = 0;
+		void setwindowtext(const std::wstring& text)
+		{
+			windowtext = text;
+		}
+		const std::wstring& getwindowtext() const
+		{
+			return windowtext;
+		}
+		void setPosition(const CRect& _pos)
+		{
+			Position = _pos;
+		}
+		const CRect& getPosition() const
+		{
+			return Position;
+		}
 	private:
-
+		bool iffocus;
+		bool ifenabled;
+		CRect Position;
+		std::wstring windowtext;
+		std::map <cint,std::function<void(cuieventbase*)>> EventHandler;
+	protected:
+		
+		std::shared_ptr<PatternManagerBase> pPatternManager;
+		void addevents(cuieventenum cee, const std::function<void(cuieventbase*)>& func)
+		{
+			EventHandler[cee] = func;
+		}
 	};
+
+	class cuibutton:public cibboncontrolbase//这是一个简单的button
+	{
+	public:
+		cuibutton(HWND hWnd, PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
+		~cuibutton();
+	private:
+		void initevents() override;
+	};
+
+	/*class mininumbutton : public cuibutton
+	{
+
+	};*/
 
 }

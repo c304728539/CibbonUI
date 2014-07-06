@@ -5,8 +5,8 @@
 namespace cibbonui{
 	class cuirendermanager
 	{
-		friend class std::shared_ptr<cuirendermanager>;
-
+		//friend class  std::shared_ptr<cuirendermanager>;
+		//friend std::make_shared<cuirendermanager>;
 	public:
 		
 		static std::shared_ptr<cuirendermanager> getManager(HWND hWnd);
@@ -40,16 +40,52 @@ namespace cibbonui{
 	};
 
 
-	class LayoutManagerBase
+	class PatternManagerBase
 	{
-	protected:
-		LayoutManagerBase(HWND hWnd);
+	public:
+		PatternManagerBase(HWND hWnd);
 		virtual void drawusual() = 0;
 		virtual void drawfocus() = 0;
 		virtual void drawmove() = 0;
-		virtual ~LayoutManagerBase() = default;
-	private:
+		virtual ~PatternManagerBase() = default;
+	protected:
 		std::shared_ptr<cuirendermanager> pRendermanager;
+	};
+
+
+	class ButtonPattern :public PatternManagerBase
+	{
+	public:
+		ButtonPattern(HWND hWnd);
+		void drawusual() override;
+		void drawfocus() override;
+		void drawmove() override;
+
+	};
+
+	/*class mininumbuttonPattern :public ButtonPattern 
+	{
+	public:
+		mininumbuttonPattern(HWND hWnd);
+		virtual ~mininumbuttonPattern () = default;
+
+		void drawusual() override;
+		void drawfocus() override;
+		void drawmove() override;
+
+	private:
+
+	};*/
+
+
+
+	class LayoutManager
+	{
+	public:
+		LayoutManager();
+		~LayoutManager();
+
+	private:
 	};
 
 }
