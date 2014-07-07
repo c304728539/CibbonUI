@@ -43,5 +43,7 @@
 #include <dwrite.h>
 #include <CommCtrl.h>
 #include <windowsx.h>
-
+#include <initializer_list>
+#include <process.h>
+#include <stdio.h>
 // TODO:  在此处引用程序需要的其他头文件

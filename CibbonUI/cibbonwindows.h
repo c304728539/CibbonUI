@@ -8,7 +8,16 @@ namespace cibbonui{
 	class controllermanager;
 	class cibboncontrolbase;
 	class observer;
+	class observer
+	{
+	public:
+		observer();
+		~observer();
+		virtual void HandleNotify(cuieventbase*) = 0;//Core
 
+	private:
+
+	};
 	class subject
 	{
 		//提供接口
@@ -30,16 +39,7 @@ namespace cibbonui{
 		std::vector<observer*> Observers;
 	};
 
-	class observer
-	{
-	public:
-		observer();
-		~observer();
-		virtual void HandleNotify(cuieventbase*) = 0;//Core
-
-	private:
-
-	};
+	
 
 	class cuiwindowbase : public subject
 	{
@@ -152,19 +152,20 @@ namespace cibbonui{
 		bool ifenabled;
 		CRect Position;
 		std::wstring windowtext;
-		std::map <cint,std::function<void(cuieventbase*)>> EventHandler;
+		std::map <cint,std::vector<std::function<void(cuieventbase*)>>> EventHandler;
 	protected:
 		
 		std::shared_ptr<PatternManagerBase> pPatternManager;
 		void addevents(cuieventenum cee, const std::function<void(cuieventbase*)>& func)
 		{
-			EventHandler[cee] = func;
+			EventHandler[cee].push_back(func);
 		}
 	};
 
 	class cuibutton:public cibboncontrolbase//这是一个简单的button
 	{
 	public:
+		//friend class ButtonPattern;
 		cuibutton(HWND hWnd, PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
 		~cuibutton();
 	private:

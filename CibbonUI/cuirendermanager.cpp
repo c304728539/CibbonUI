@@ -1,4 +1,4 @@
-
+#include "stdafx.h"
 #include "cuirendermanager.h"
 
 
@@ -118,9 +118,9 @@ namespace cibbonui{
 	}
 
 
-	void cuirendermanager::drawrect(const CPointf& ltop, const CPointf& rbottom, float linewidth, cint color)
+	void cuirendermanager::drawrect(const CRect& rect, float linewidth, cint color)
 	{
-		pRT->DrawRectangle(RectF(ltop.x, ltop.y, rbottom.x, rbottom.y),getBrush(color),linewidth);
+		pRT->DrawRectangle(rect,getBrush(color),linewidth);
 	}
 
 	void cuirendermanager::drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth, cint color)
@@ -158,13 +158,27 @@ namespace cibbonui{
 	{
 
 	}
+	void ButtonPattern::drawdown()
+	{
+		pRendermanager->drawrect(Ownerrect,2.0,ColorF::Black);
+	}
+	void ButtonPattern::drawusual()
+	{
 
-	mininumbuttonPattern::mininumbuttonPattern(HWND hWnd) : ButtonPattern(hWnd)
+	}
+	void ButtonPattern::drawfocus()
+	{
+
+	}
+	void ButtonPattern::drawmove()
+	{
+
+	}
+	void ButtonPattern::drawup()
 	{
 
 	}
 
-	mininumbuttonPattern::
 	
 }
 

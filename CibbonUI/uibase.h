@@ -18,6 +18,7 @@ namespace cibbonui
 	enum cuieventenum
 	{
 		//待添加的事件
+		mousemove,
 		lbuttondown,
 		lbuttonup,
 		rbuttondown,
@@ -51,7 +52,13 @@ namespace cibbonui
 		
 		//待添加？
 	};
-
+	enum layoutenum{
+		rightAlignment,//以最右控件对齐,为标题栏三个按钮设计
+		leftAlignmant,
+		averageAlignment,
+		oneandtwoAlignment
+		//... so on , in the future...
+	};
 
 	using win32 =  std::tuple<HWND, UINT, WPARAM, LPARAM>;
 

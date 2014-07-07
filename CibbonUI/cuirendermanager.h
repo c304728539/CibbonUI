@@ -3,6 +3,7 @@
 #include "uibase.h"
 
 namespace cibbonui{
+	class cibboncontrolbase;
 	class cuirendermanager
 	{
 		//friend class  std::shared_ptr<cuirendermanager>;
@@ -14,7 +15,7 @@ namespace cibbonui{
 
 		void begindraw();
 		void enddraw();
-		void drawrect(const CPointf& ltop, const CPointf& rbottom, float linewidth = 1.0f, int color = D2D1::ColorF::Black);
+		void drawrect(const CRect& rect,float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void FillRect(const D2D1_RECT_F& rect, int color = D2D1::ColorF::White);
 		void drawtext(std::wstring text, cint fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
@@ -48,8 +49,14 @@ namespace cibbonui{
 		virtual void drawfocus() = 0;
 		virtual void drawmove() = 0;
 		virtual ~PatternManagerBase() = default;
-	protected:
+		void setrect(const CRect& _rect)
+		{
+			Ownerrect = _rect;
+		}
+		protected:
 		std::shared_ptr<cuirendermanager> pRendermanager;
+		//cibboncontrolbase*  ownercontrol;
+		CRect Ownerrect;
 	};
 
 
@@ -57,9 +64,12 @@ namespace cibbonui{
 	{
 	public:
 		ButtonPattern(HWND hWnd);
-		void drawusual() override;
-		void drawfocus() override;
-		void drawmove() override;
+		virtual void drawusual() override;
+		virtual void drawfocus() override;
+		virtual void drawmove() override;
+		virtual void drawdown();
+		virtual void drawup();
+	
 
 	};
 
@@ -76,16 +86,16 @@ namespace cibbonui{
 	private:
 
 	};*/
-
-
-
+	template<layoutenum L>
 	class LayoutManager
 	{
 	public:
 		LayoutManager();
+		LayoutManager(const std::initializer_list<cibboncontrolbase*>& il);
 		~LayoutManager();
 
 	private:
+		std::vector<cibboncontrolbase*> controlvt;
 	};
 
 }

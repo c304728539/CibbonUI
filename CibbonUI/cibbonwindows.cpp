@@ -1,4 +1,4 @@
-
+#include "stdafx.h"
 #include "cibbonwindows.h"
 #include "cuirendermanager.h"
 using namespace std;
@@ -192,7 +192,7 @@ namespace cibbonui
 		ifenabled(Enable),
 		pPatternManager(_pPatternManager)
 	{
-
+		pPatternManager->setrect(this->getPosition());
 	}
 
 	void cibboncontrolbase::HandleNotify(cuieventbase* pceb)
@@ -200,7 +200,8 @@ namespace cibbonui
 		auto it = EventHandler.find(pceb->eventname);
 		if ( it != EventHandler.end())
 		{
-			return it->second(pceb);
+			for (auto vit : it->second)
+				vit(pceb);
 		}
 	}
 
@@ -209,10 +210,24 @@ namespace cibbonui
 	{
 
 	}
-
+	//绘制事件整装待发！
 	void cuibutton::initevents()
 	{
+		auto p = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawdown(); return 0; });
+		addevents(lbuttondown, [this,p](cuieventbase* pceb)->void{
+			_beginthreadex(0, 0, 
+				p, 
+				pPatternManager.get(), 0, 0); });
+		p = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawup(); return 0; });
+	    addevents(lbuttonup, [this,p](cuieventbase* pceb)->void{
+			_beginthreadex(0, 0, 
+				p, 
+				pPatternManager.get(), 0, 0);  });
 
+		addevents(mousemove, [this](cuieventbase* pceb)->void{
+			_beginthreadex(0, 0, 
+				static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawmove(); return 0; }) ,
+				pPatternManager.get() , 0 ,0 ); });
 	}
 
 }
