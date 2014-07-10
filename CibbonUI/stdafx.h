@@ -46,4 +46,7 @@
 #include <initializer_list>
 #include <process.h>
 #include <stdio.h>
+#pragma comment(lib,"d2d1.lib")
+#pragma comment(lib,"dwrite.lib")
+
 // TODO:  在此处引用程序需要的其他头文件

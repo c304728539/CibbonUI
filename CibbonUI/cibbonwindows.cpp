@@ -20,11 +20,13 @@ namespace cibbonui
 		windowmessage(),
 		subject()
 	{
+		//initevents();
+		//init();
 	}
 
 	void cuiwindowbase::run()
 	{
-		init();
+		
 		runmessageloop();
 	}
 
@@ -112,8 +114,10 @@ namespace cibbonui
 	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width, cint _height, cstyle _style)
 		:cuiwindowbase(_hInst, _title, _windowstyle, _width, _height, _style)
 	{
+		
+		//run();
 		initevents();
-		run();
+		init();
 	}
 
 	cuistdwindow::cuistdwindow():cuiwindowbase(){}
@@ -139,30 +143,42 @@ namespace cibbonui
 			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			bevent.eventname = cuieventenum::lbuttondown;
 			notifyobservers(&bevent);
+			return::DefWindowProc(hWnd, Message, wParam, lParam);
+		});
+		addevents(WM_MOUSEMOVE, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+			cuibuttonevent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventname = cuieventenum::mousemove;
+			notifyobservers(&bevent);
+			return::DefWindowProc(hWnd, Message, wParam, lParam);
 		});
 		addevents(WM_LBUTTONUP, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
 			cuibuttonevent bevent;
 			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			bevent.eventname = cuieventenum::lbuttonup;
 			notifyobservers(&bevent);
+			return::DefWindowProc(hWnd, Message, wParam, lParam);
 		});
 		addevents(WM_RBUTTONDOWN, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
 			cuibuttonevent bevent;
 			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			bevent.eventname = cuieventenum::lbuttondown;
 			notifyobservers(&bevent);
+			return::DefWindowProc(hWnd, Message, wParam, lParam);
 		});
 		addevents(WM_RBUTTONUP, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
 			cuibuttonevent bevent;
 			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			bevent.eventname = cuieventenum::rbuttonup;
 			notifyobservers(&bevent);
+			return::DefWindowProc(hWnd, Message, wParam, lParam);
 		});
 		addevents(WM_LBUTTONDBLCLK, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
 			cuibuttonevent bevent;
 			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 			bevent.eventname = cuieventenum::lbuttondoubleclick;
 			notifyobservers(&bevent);
+			return::DefWindowProc(hWnd, Message, wParam, lParam);
 		});
 	}
 
@@ -190,13 +206,35 @@ namespace cibbonui
 		Position(_Position), 
 		windowtext(_text),
 		ifenabled(Enable),
-		pPatternManager(_pPatternManager)
+		pPatternManager(_pPatternManager),
+		ifin(false)
 	{
+		rPosition = { Position.left, Position.top, Position.right, Position.bottom };
 		pPatternManager->setrect(this->getPosition());
 	}
 
 	void cibboncontrolbase::HandleNotify(cuieventbase* pceb)
 	{
+		if (!PtInRect(&rPosition, static_cast<cuibuttonevent*>(pceb)->eventposition))
+		{
+			if (!iffocus && pceb->eventname != mousemove) return;
+			if (!ifin)
+				return;
+			else if (pceb->eventname == mousemove)
+			{
+				pceb->eventname = mousemoveout;
+				ifin = false;
+			}
+		}
+		else
+		{
+			if (ifin) return;
+			if (!ifin && pceb->eventname == mousemove)
+			{
+				pceb->eventname = mousemovein;
+				ifin = true;
+			}
+		}
 		auto it = EventHandler.find(pceb->eventname);
 		if ( it != EventHandler.end())
 		{
@@ -208,26 +246,32 @@ namespace cibbonui
 	cuibutton::cuibutton(HWND hWnd, PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
 		:cibboncontrolbase(new ButtonPattern(hWnd),_Position, _text, Enable)
 	{
-
+		initevents();
 	}
 	//绘制事件整装待发！
 	void cuibutton::initevents()
 	{
-		auto p = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawdown(); return 0; });
-		addevents(lbuttondown, [this,p](cuieventbase* pceb)->void{
+		auto Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawdown(); return 0; });
+		addevents(lbuttondown, [this, Func](cuieventbase* pceb)->void{
 			_beginthreadex(0, 0, 
-				p, 
+				Func,
 				pPatternManager.get(), 0, 0); });
-		p = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawup(); return 0; });
-	    addevents(lbuttonup, [this,p](cuieventbase* pceb)->void{
-			_beginthreadex(0, 0, 
-				p, 
-				pPatternManager.get(), 0, 0);  });
 
-		addevents(mousemove, [this](cuieventbase* pceb)->void{
+			Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawup(); return 0; });
+			addevents(lbuttonup, [this, Func](cuieventbase* pceb)->void{
 			_beginthreadex(0, 0, 
-				static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawmove(); return 0; }) ,
-				pPatternManager.get() , 0 ,0 ); });
+				Func,
+				pPatternManager.get(), 0, 0);  });
+			Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawdown(); return 0; });
+	        addevents(mousemovein, [this, Func](cuieventbase* pceb)->void{
+		      _beginthreadex(0, 0,
+			Func,
+			pPatternManager.get(), 0, 0);  });
+			Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{static_cast<ButtonPattern*>(p)->drawusual(); return 0; });
+			addevents(mousemoveout, [this, Func](cuieventbase* pceb)->void{
+				  _beginthreadex(0, 0,
+					  Func,
+					  pPatternManager.get(), 0, 0);  });
 	}
 
 }

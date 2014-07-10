@@ -28,6 +28,8 @@ namespace cibbonui{
 		bool ifbegin;
 		CRect windowrect;
 		std::map<int, ID2D1SolidColorBrush*> brushmap;
+		unsigned int beginnum;
+		CRITICAL_SECTION g_cs ;
 
 		ID2D1Factory* pD2DFactory;
 		ID2D1HwndRenderTarget* pRT;
@@ -97,5 +99,14 @@ namespace cibbonui{
 	private:
 		std::vector<cibboncontrolbase*> controlvt;
 	};
+	/*程序架构的简单分析：
+	
+	  1.可以创建一个App类，将控件与Window放入其中。制定控件的位置；
+	  2.将控件全部放入Layout中。Layout负责计算控件的位置。
+
+	  控件间交互 目前来看，只能是使用观察者机制。
+	
+	
+	*/
 
 }

@@ -11,8 +11,8 @@ namespace cibbonui{
 	class observer
 	{
 	public:
-		observer();
-		~observer();
+		observer() = default;
+		virtual ~observer() = default;
 		virtual void HandleNotify(cuieventbase*) = 0;//Core
 
 	private:
@@ -50,7 +50,16 @@ namespace cibbonui{
 		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		virtual ~cuiwindowbase();
 		void run();
-
+		HWND gethwnd() const
+		{
+			return m_hWnd;
+		}
+		const CRect& getPosition() const
+		{
+			RECT rect;
+			GetClientRect(m_hWnd,&rect);
+			return D2D1::RectF( rect.left, rect.top, rect.right, rect.bottom );
+		}
 	protected:
 		virtual void initevents() = 0;
 		//具体实现应该形如addevents(WM_SIZE,_Func)
@@ -150,11 +159,13 @@ namespace cibbonui{
 	private:
 		bool iffocus;
 		bool ifenabled;
+		
 		CRect Position;
+		RECT rPosition;
 		std::wstring windowtext;
 		std::map <cint,std::vector<std::function<void(cuieventbase*)>>> EventHandler;
 	protected:
-		
+		bool ifin;
 		std::shared_ptr<PatternManagerBase> pPatternManager;
 		void addevents(cuieventenum cee, const std::function<void(cuieventbase*)>& func)
 		{
@@ -167,7 +178,7 @@ namespace cibbonui{
 	public:
 		//friend class ButtonPattern;
 		cuibutton(HWND hWnd, PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
-		~cuibutton();
+		~cuibutton() = default;
 	private:
 		void initevents() override;
 	};

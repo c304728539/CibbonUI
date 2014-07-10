@@ -17,7 +17,7 @@ namespace cibbonui{
 			(*ppInterfaceToRelease) = nullptr;
 		}
 	}
-	cuirendermanager::cuirendermanager(HWND hWnd) :m_hWnd(hWnd), ifbegin(false)
+	cuirendermanager::cuirendermanager(HWND hWnd) :m_hWnd(hWnd), ifbegin(false), beginnum(0)
 	{
 		CreateDeviceIndependentResources();
 		CreateDeviceResources();
@@ -26,6 +26,7 @@ namespace cibbonui{
 
 	cuirendermanager::~cuirendermanager()
 	{
+		
 		Free(&pD2DFactory);
 		Free(&pRT);
 		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{pr.second->Release(); });
@@ -41,7 +42,7 @@ namespace cibbonui{
 	void cuirendermanager::CreateDeviceIndependentResources()
 	{
 		HRESULT hr = E_FAIL;
-		hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory);
+		hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &pD2DFactory);
 		if (FAILED(hr)) std::abort();
 		hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
 			__uuidof(pDwFactory),
@@ -69,21 +70,26 @@ namespace cibbonui{
 
 	void cuirendermanager::begindraw()
 	{
-		if (!ifbegin)
-		{
-			ifbegin = true;
+		
+		/*if (InterlockedIncrement(&beginnum)== 1)
+		{*/
 			pRT->BeginDraw();
-		}
+			if (!ifbegin)
+			{
+				pRT->Clear(ColorF(ColorF::White));
+				ifbegin = false;
+			}
+		/*}*/
+		
 	}
 
 	void cuirendermanager::enddraw()
 	{
-		if (ifbegin)
-		{
-			HRESULT hr = pRT->EndDraw();
-			ifbegin = false;
-			if (FAILED(hr)) std::abort();
-		}
+		/*if (!InterlockedDecrement(&beginnum))
+		{*/
+			HRESULT hr =pRT->EndDraw();
+			//if (FAILED(hr)) throw "haha";
+		/*}*/
 	}
 
 	ID2D1SolidColorBrush* cuirendermanager::getBrush(cint color)
@@ -137,6 +143,7 @@ namespace cibbonui{
 	{
 		auto pFormat = getFormat(fontsize);
 		pFormat->SetTextAlignment(Alig);
+		pFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 		pRT->DrawTextW(
 			text.c_str(),
 			text.size(),
@@ -160,11 +167,18 @@ namespace cibbonui{
 	}
 	void ButtonPattern::drawdown()
 	{
-		pRendermanager->drawrect(Ownerrect,2.0,ColorF::Black);
+		pRendermanager->begindraw();
+		//pRendermanager->drawrect(Ownerrect,2.0,ColorF::Black);
+		pRendermanager->FillRect(Ownerrect, ColorF::AliceBlue);
+		pRendermanager->enddraw();
 	}
 	void ButtonPattern::drawusual()
 	{
-
+		pRendermanager->begindraw();
+		//pRendermanager->drawrect(Ownerrect, 2.0, ColorF::Black);
+		//pRendermanager->FillRect(Ownerrect, ColorF::White);
+		pRendermanager->drawtext(L"demo", 15, RectF(Ownerrect.left+20,Ownerrect.top+15,Ownerrect.right,Ownerrect.bottom),Alignmentleft);
+		pRendermanager->enddraw();
 	}
 	void ButtonPattern::drawfocus()
 	{

@@ -19,6 +19,8 @@ namespace cibbonui
 	{
 		//待添加的事件
 		mousemove,
+		mousemovein,
+		mousemoveout,
 		lbuttondown,
 		lbuttonup,
 		rbuttondown,
@@ -48,7 +50,7 @@ namespace cibbonui
 	};
 	struct cuibuttonevent : public cuieventbase
 	{
-		CPointf eventposition;
+		POINT eventposition;
 		
 		//待添加？
 	};
