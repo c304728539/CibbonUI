@@ -42,12 +42,16 @@ namespace cibbonui{
 	void cuirendermanager::CreateDeviceIndependentResources()
 	{
 		HRESULT hr = E_FAIL;
-		hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &pD2DFactory);
+		hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory);
 		if (FAILED(hr)) std::abort();
 		hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
 			__uuidof(pDwFactory),
 			reinterpret_cast<IUnknown **>(&pDwFactory));
 		if (FAILED(hr)) std::abort();
+		HDC screen = GetDC(0);
+		DPIX = GetDeviceCaps(screen, LOGPIXELSX) / 96.0f;
+		DPIY = GetDeviceCaps(screen, LOGPIXELSY) / 96.0f;
+		ReleaseDC(0, screen);
 	}
 
 	void cuirendermanager::CreateDeviceResources()
@@ -74,9 +78,9 @@ namespace cibbonui{
 		/*if (InterlockedIncrement(&beginnum)== 1)
 		{*/
 			pRT->BeginDraw();
-			if (!ifbegin)
+			if (ifbegin)
 			{
-				pRT->Clear(ColorF(ColorF::White));
+				pRT->Clear(ColorF(ColorF::Black));
 				ifbegin = false;
 			}
 		/*}*/
@@ -113,7 +117,7 @@ namespace cibbonui{
 		HRESULT hr = pDwFactory->CreateTextFormat(
 			fontname.c_str(),
 			nullptr,
-			DWRITE_FONT_WEIGHT_NORMAL,
+			DWRITE_FONT_WEIGHT_THIN,
 			DWRITE_FONT_STYLE_NORMAL,
 			DWRITE_FONT_STRETCH_NORMAL,
 			fontsize,
@@ -141,7 +145,7 @@ namespace cibbonui{
 
 	void cuirendermanager::drawtext(wstring text, cint fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
-		auto pFormat = getFormat(fontsize);
+		auto pFormat = getFormat(fontsize, L"Gabriola");
 		pFormat->SetTextAlignment(Alig);
 		pFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 		pRT->DrawTextW(
@@ -169,7 +173,7 @@ namespace cibbonui{
 	{
 		pRendermanager->begindraw();
 		//pRendermanager->drawrect(Ownerrect,2.0,ColorF::Black);
-		pRendermanager->FillRect(Ownerrect, ColorF::AliceBlue);
+		//pRendermanager->FillRect(Ownerrect, ColorF::AliceBlue);
 		pRendermanager->enddraw();
 	}
 	void ButtonPattern::drawusual()
@@ -177,7 +181,7 @@ namespace cibbonui{
 		pRendermanager->begindraw();
 		//pRendermanager->drawrect(Ownerrect, 2.0, ColorF::Black);
 		//pRendermanager->FillRect(Ownerrect, ColorF::White);
-		pRendermanager->drawtext(L"demo", 15, RectF(Ownerrect.left+20,Ownerrect.top+15,Ownerrect.right,Ownerrect.bottom),Alignmentleft);
+		pRendermanager->drawtext(L"demo", 72, RectF((Ownerrect.left+20),Ownerrect.top+10,Ownerrect.right,Ownerrect.bottom),Alignmentleft,ColorF::White);
 		pRendermanager->enddraw();
 	}
 	void ButtonPattern::drawfocus()

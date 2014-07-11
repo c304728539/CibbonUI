@@ -79,16 +79,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CaptionTest.cpp" />
     <ClCompile Include="CibbonButtonDemo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CibbonUI\CibbonUI.vcxproj">
       <Project>{feb89b22-6aa3-498e-b03a-96e35fa77e45}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="CaptionTest.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

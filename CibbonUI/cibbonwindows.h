@@ -4,23 +4,17 @@
 
 namespace cibbonui{
 
-	class cibbonevent;
-	class controllermanager;
 	class cibboncontrolbase;
-	class observer;
-	class observer
+	
+class observer
 	{
 	public:
 		observer() = default;
 		virtual ~observer() = default;
-		virtual void HandleNotify(cuieventbase*) = 0;//Core
-
-	private:
-
-	};
+		virtual void HandleNotify(cuievent*) = 0;//Core
+    };
 	class subject
 	{
-		//提供接口
 	public:
 		virtual void registerobserver(observer* po)
 		{
@@ -30,7 +24,7 @@ namespace cibbonui{
 		{
 			if (!Observers.empty()) Observers.pop_back();
 		}
-		virtual void notifyobservers(cuieventbase* pce)
+		virtual void notifyobservers(cuievent* pce)
 		{
 			for_each(Observers.begin(), Observers.end(), [pce](observer* po)->void { po->HandleNotify(pce); });
 		}
@@ -54,28 +48,23 @@ namespace cibbonui{
 		{
 			return m_hWnd;
 		}
-		const CRect& getPosition() const
+		CRect getPosition() const
 		{
 			RECT rect;
 			GetClientRect(m_hWnd,&rect);
 			return D2D1::RectF( rect.left, rect.top, rect.right, rect.bottom );
 		}
+		void addevents(UINT Message, winfunc Func);
 	protected:
 		virtual void initevents() = 0;
 		//具体实现应该形如addevents(WM_SIZE,_Func)
-		/*virtual std::map<UINT, winfunc>* get()
-		{
-			return &windowmessage;
-		}*/
-		void addevents(UINT Message, winfunc Func);
-		
 		virtual void init();
 		void runmessageloop();
 	private:
 		
 		static LRESULT CALLBACK WndProc
 			(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
-		std::map <UINT, winfunc> windowmessage;
+		std::map <UINT, std::vector<winfunc>> windowmessage;
 		HINSTANCE hInst;
 		HWND m_hWnd;
 		std::wstring title;
@@ -83,50 +72,22 @@ namespace cibbonui{
 		cint width;
 		cint height;
 		cstyle realstyle;
-		//std::shared_ptr<controllermanager> pmanager;
+		
 	};
 
 	class  cuistdwindow : public cuiwindowbase
 	{
-		//using cuiwindowbase::winfunc;
 	public:
 		 cuistdwindow();
 		 cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW , cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		~cuistdwindow();
 	protected:
 		void initevents() override;
+		void addhelper(UINT Message,cuieventenum cuienum);
 	private:
 		
 	};
 
-
-	class cibbonevent
-	{
-		using eventcontainer = std::map<cint, std::vector<std::function<void(void*)>>>;
-	public:
-		//cibbonevent() :pevents(new eventcontainer)
-		//{};
-		//void doevent();
-		~cibbonevent(){};
-		//cibbonevent& operator+=(std::function<void(void*)>);
-	private:
-		//std::shared_ptr<eventcontainer> pevents;//每个事件的队列
-	};
-
-	//class controllermanager : public subject
-	//{
-	//public:
-	//	controllermanager();
-	//	~controllermanager();
-	//	LRESULT handlemessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);//负责分发消息，真正意义上的观察者
-	//	void registerobserver(observer*) override;
-	//	void removeobserver() override;
-	//	void notifyobservers(cuieventbase* pcuievent) override;
-	//private:
-	//	std::vector<observer*> observers;
-	//	
-
-	//};
 
 	class cibboncontrolbase :public observer,public subject
 	{
@@ -134,12 +95,9 @@ namespace cibbonui{
 		cibboncontrolbase();
 		cibboncontrolbase(PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
 		virtual ~cibboncontrolbase() = default;
-		//void update(cuieventbase*) override;
-		/*void registerobserver(observer*) override ;
-		void removeobserver() override;
-		void notifyobservers(cuieventbase*) override;*/
-		void HandleNotify(cuieventbase*) override;
-		virtual void initevents() = 0;
+		void HandleNotify(cuievent*) override;
+		
+		//virtual void InitialEvents() = 0;
 		void setwindowtext(const std::wstring& text)
 		{
 			windowtext = text;
@@ -156,6 +114,10 @@ namespace cibbonui{
 		{
 			return Position;
 		}
+		PatternManagerBase* getPatternManager() const
+		{
+			return pPatternManager;
+		}
 	private:
 		bool iffocus;
 		bool ifenabled;
@@ -163,29 +125,41 @@ namespace cibbonui{
 		CRect Position;
 		RECT rPosition;
 		std::wstring windowtext;
-		std::map <cint,std::vector<std::function<void(cuieventbase*)>>> EventHandler;
+		std::map <cint,std::vector<std::function<void()>>> EventHandler;
+
 	protected:
 		bool ifin;
-		std::shared_ptr<PatternManagerBase> pPatternManager;
-		void addevents(cuieventenum cee, const std::function<void(cuieventbase*)>& func)
+		PatternManagerBase* pPatternManager;
+		virtual void initevents() = 0;
+
+		void addevents(cuieventenum cee, const std::function<void()>& func)
 		{
 			EventHandler[cee].push_back(func);
 		}
 	};
 
-	class cuibutton:public cibboncontrolbase//这是一个简单的button
+	class cuibutton : public cibboncontrolbase//这是一个简单的button
 	{
 	public:
-		//friend class ButtonPattern;
-		cuibutton(HWND hWnd, PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
+		cuibutton(PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
 		~cuibutton() = default;
+		void Onclick(const std::function<void()>& func);
+	private:
+		void initevents() override;
+		
+	};
+
+
+	
+
+
+
+
+
+	class cuistatic :public cibboncontrolbase
+	{
+		cuistatic(PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
 	private:
 		void initevents() override;
 	};
-
-	/*class mininumbutton : public cuibutton
-	{
-
-	};*/
-
 }

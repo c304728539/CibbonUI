@@ -5,6 +5,8 @@ namespace cibbonui
 	using cdword = DWORD;
 	using CPointf = D2D1_POINT_2F;
 	using CRect = D2D1_RECT_F;
+	const bool already = true;
+	const bool notyet = false;
 	//using 
 	
 	enum cstyle
@@ -18,6 +20,7 @@ namespace cibbonui
 	enum cuieventenum
 	{
 		//待添加的事件
+		controlinit,
 		mousemove,
 		mousemovein,
 		mousemoveout,
@@ -43,14 +46,15 @@ namespace cibbonui
 	//	LPARAM lParam;
 	//};
 
-	struct cuieventbase
+	struct cuievent
 	{
 		cuieventenum eventname;
-		virtual ~cuieventbase() = default;
-	};
-	struct cuibuttonevent : public cuieventbase
-	{
 		POINT eventposition;
+		virtual ~cuievent() = default;
+	};
+	struct cuibuttonevent : public cuievent
+	{
+		
 		
 		//待添加？
 	};

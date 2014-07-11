@@ -18,13 +18,5 @@
     <ClCompile Include="CibbonButtonDemo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CaptionTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="CaptionTest.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

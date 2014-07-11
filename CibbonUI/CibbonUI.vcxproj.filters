@@ -44,9 +44,6 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="cuirendermanager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="cibbonwindows.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

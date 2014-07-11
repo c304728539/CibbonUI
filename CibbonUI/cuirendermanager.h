@@ -3,16 +3,15 @@
 #include "uibase.h"
 
 namespace cibbonui{
-	class cibboncontrolbase;
+	
 	class cuirendermanager
 	{
-		//friend class  std::shared_ptr<cuirendermanager>;
-		//friend std::make_shared<cuirendermanager>;
 	public:
 		
 		static std::shared_ptr<cuirendermanager> getManager(HWND hWnd);
 		~cuirendermanager();
 
+		void clearall(cint color = D2D1::ColorF::White);
 		void begindraw();
 		void enddraw();
 		void drawrect(const CRect& rect,float linewidth = 1.0f, int color = D2D1::ColorF::Black);
@@ -30,6 +29,8 @@ namespace cibbonui{
 		std::map<int, ID2D1SolidColorBrush*> brushmap;
 		unsigned int beginnum;
 		CRITICAL_SECTION g_cs ;
+		float DPIX;
+		float DPIY;
 
 		ID2D1Factory* pD2DFactory;
 		ID2D1HwndRenderTarget* pRT;
@@ -45,20 +46,19 @@ namespace cibbonui{
 
 	class PatternManagerBase
 	{
+		friend class cibboncontrolbase;
 	public:
 		PatternManagerBase(HWND hWnd);
-		virtual void drawusual() = 0;
-		virtual void drawfocus() = 0;
-		virtual void drawmove() = 0;
+		virtual void drawusual(cibboncontrolbase* pControl) = 0;
+		virtual void drawfocus(cibboncontrolbase* pControl) = 0;
+		virtual void drawmove(cibboncontrolbase* pControl) = 0;
+		virtual void initdraw(cibboncontrolbase* pControl) = 0;
 		virtual ~PatternManagerBase() = default;
-		void setrect(const CRect& _rect)
-		{
-			Ownerrect = _rect;
-		}
-		protected:
+		
 		std::shared_ptr<cuirendermanager> pRendermanager;
-		//cibboncontrolbase*  ownercontrol;
-		CRect Ownerrect;
+	protected:
+		void drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color = D2D1::ColorF::Black);
+	
 	};
 
 
@@ -66,28 +66,13 @@ namespace cibbonui{
 	{
 	public:
 		ButtonPattern(HWND hWnd);
-		virtual void drawusual() override;
-		virtual void drawfocus() override;
-		virtual void drawmove() override;
-		virtual void drawdown();
-		virtual void drawup();
-	
-
+		virtual void drawusual(cibboncontrolbase* pControl) override;
+		virtual void drawfocus(cibboncontrolbase* pControl) override;
+		virtual void drawmove(cibboncontrolbase* pControl) override;
+		virtual void drawdown(cibboncontrolbase* pControl);
+		virtual void drawup(cibboncontrolbase* pControl);
+		virtual void initdraw(cibboncontrolbase* pControl) override;
 	};
-
-	/*class mininumbuttonPattern :public ButtonPattern 
-	{
-	public:
-		mininumbuttonPattern(HWND hWnd);
-		virtual ~mininumbuttonPattern () = default;
-
-		void drawusual() override;
-		void drawfocus() override;
-		void drawmove() override;
-
-	private:
-
-	};*/
 	template<layoutenum L>
 	class LayoutManager
 	{
