@@ -2,6 +2,7 @@
 
 
 using namespace cibbonui;
+using namespace D2D1;
 
 int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE ,
@@ -12,7 +13,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		ButtonPattern Pattern(MainWindow.gethwnd());
 		cuibutton Buttontest(&Pattern, D2D1::RectF(120, 120, 220, 150), L"ÍË³ö");
 		Buttontest.Onclick([]()->void{::MessageBox(0,L"haha",L"Demo",0);
-		//::PostQuitMessage(0); 
+		 ::PostQuitMessage(0); 
 		});
 		MainWindow.registerobserver(&Buttontest);
 		auto hWnd = MainWindow.gethwnd();
