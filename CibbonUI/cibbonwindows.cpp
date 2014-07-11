@@ -66,7 +66,7 @@ namespace cibbonui
 		HRESULT hr;
 		RECT rect;
 		GetClientRect(m_hWnd, &rect);
-		windowrect = D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom);
+		windowrect = D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
 		hr = pD2DFactory->CreateHwndRenderTarget(
 			RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
 			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -114,13 +114,13 @@ namespace cibbonui
 		return pBrush;
 	}
 
-	IDWriteTextFormat* cuirendermanager::getFormat(cint fontsize, wstring fontname)
+	IDWriteTextFormat* cuirendermanager::getFormat(float fontsize, wstring fontname)
 	{
 		IDWriteTextFormat* pFormat = nullptr;
 		HRESULT hr = pDwFactory->CreateTextFormat(
 			fontname.c_str(),
 			nullptr,
-			DWRITE_FONT_WEIGHT_THIN,
+			DWRITE_FONT_WEIGHT_NORMAL,
 			DWRITE_FONT_STYLE_NORMAL,
 			DWRITE_FONT_STRETCH_NORMAL,
 			fontsize,
@@ -146,7 +146,7 @@ namespace cibbonui
 		return pRT->FillRectangle(rect, getBrush(color));
 	}
 
-	void cuirendermanager::drawtext(wstring text, cint fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
+	void cuirendermanager::drawtext(wstring text, float fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
 		auto pFormat = getFormat(fontsize, L"Microsoft YaHei");
 		pFormat->SetTextAlignment(Alig);
@@ -169,7 +169,7 @@ namespace cibbonui
 	}
 	inline void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
-		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),sqrt(pControl->getPosition().bottom - pControl->getPosition().top), pControl->getPosition(), Alig, Color);
+		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),2* sqrt(pControl->getPosition().bottom - pControl->getPosition().top), pControl->getPosition(), Alig, Color);
 	}
 
 	ButtonPattern::ButtonPattern(HWND hWnd) : PatternManagerBase(hWnd)
@@ -179,6 +179,8 @@ namespace cibbonui
 	void ButtonPattern::drawdown(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), ColorF::SkyBlue);
+		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
 		pRendermanager->enddraw();
 	}
 	void ButtonPattern::drawusual(cibboncontrolbase* pControl)
@@ -186,7 +188,6 @@ namespace cibbonui
 		pRendermanager->begindraw();
 		pRendermanager->FillRect(pControl->getPosition(), ColorF::White);
 		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
-		//pRendermanager->drawtext(pControl->getwindowtext().c_str(), 20, pControl->getPosition(), Alignmentleft, ColorF::Black);
 		pRendermanager->enddraw();
 	}
 	void ButtonPattern::drawfocus(cibboncontrolbase* pControl)
@@ -196,12 +197,13 @@ namespace cibbonui
 	void ButtonPattern::drawmove(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::SkyBlue);
+		pRendermanager->FillRect(pControl->getPosition(), ColorF::LightBlue);
 		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
 		pRendermanager->enddraw();
 	}
 	inline void ButtonPattern::drawup(cibboncontrolbase* pControl)
 	{
+		Sleep(2000);
 		return drawusual(pControl);
 	}
 
@@ -288,7 +290,6 @@ namespace cibbonui
 			hInst,
 			this
 			);
-		//initevents();
 		if (!m_hWnd) std::abort();
 		
 	}
@@ -315,7 +316,6 @@ namespace cibbonui
 		}
 		if (pwindow)
 		{
-			//map<UINT, cuiwindowbase::winfunc>::iterator it;
 			auto it = pwindow->windowmessage.find(Message);
 			if (it != (pwindow->windowmessage).end())
 			{
@@ -346,19 +346,19 @@ namespace cibbonui
 
 	void cuistdwindow::initevents()
 	{
-		addevents(WM_CLOSE, [](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+		addevents(WM_CLOSE, [](WINPAR)->bool{
 			::PostQuitMessage(0);
 			return notyet;
 		}
 		);
-		addevents(WM_PAINT, [this](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT
+		addevents(WM_PAINT, [this](WINPAR)->bool
 		{
 			cuievent bevent;
 			bevent.eventname = cuieventenum::controlinit;
 			notifyobservers(&bevent);
 			return notyet;
 		});
-		addevents(WM_SIZE, [](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT
+		addevents(WM_SIZE, [](WINPAR)->LRESULT
 		{
 			LONG_PTR Style = ::GetWindowLongPtr(hWnd, GWL_STYLE);
 			Style = Style &~WS_CAPTION &~WS_SYSMENU &~WS_SIZEBOX;
@@ -372,6 +372,16 @@ namespace cibbonui
 		addhelper(WM_RBUTTONDOWN, rbuttondown);
 		addhelper(WM_RBUTTONUP, rbuttonup);
 		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick);
+		addevents(WM_LBUTTONDOWN, [this](WINPAR)->bool
+		{
+			SetCapture(gethwnd());
+			return notyet;
+		});
+		addevents(WM_LBUTTONUP, [this](WINPAR)->bool
+		{
+			ReleaseCapture();
+			return notyet;
+		});
 	}
 
 	inline void cuistdwindow::addhelper(UINT Message, cuieventenum cuienum)
@@ -395,7 +405,7 @@ namespace cibbonui
 		pPatternManager(_pPatternManager),
 		ifin(false)
 	{
-		rPosition = { Position.left, Position.top, Position.right, Position.bottom };
+		rPosition = { static_cast<LONG>(Position.left), static_cast<LONG>(Position.top), static_cast<LONG>(Position.right), static_cast<LONG>(Position.bottom) };
 	}
 
 	void cibboncontrolbase::HandleNotify(cuievent* pceb)
@@ -445,13 +455,19 @@ namespace cibbonui
 		addevents(lbuttondown, [this]()->void{
 			static_cast<ButtonPattern*>(pPatternManager)->drawdown(this);
 		});
-		addevents(lbuttonup, [this]()->void{
-			static_cast<ButtonPattern*>(pPatternManager)->drawup(this);
+		auto Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
+			auto x = static_cast<cuibutton*>(p);
+			static_cast<ButtonPattern*>(x->getPatternManager())->drawup(x);
+			return 0;
 		});
+		addevents(lbuttonup, [this, Func]()->void{
+			_beginthreadex(0, 0,
+				Func,
+				this, 0, 0);  });//Ìí¼Ó¶¯»­
 		addevents(mousemovein, [this]()->void{
 			static_cast<ButtonPattern*>(pPatternManager)->drawmove(this);
 		});
-		auto Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
+		Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
 			auto x = static_cast<cuibutton*>(p);
 			static_cast<ButtonPattern*>(x->getPatternManager())->drawusual(x);
 			return 0;
@@ -463,7 +479,7 @@ namespace cibbonui
 	}
 	void cuibutton::Onclick(const std::function<void()>& func)
 	{
-		return addevents(lbuttondown, func);
+		return addevents(lbuttonup, func);
 	}
 
 }

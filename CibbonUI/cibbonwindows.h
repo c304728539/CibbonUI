@@ -4,6 +4,7 @@
 
 namespace cibbonui{
 
+#define WINPAR HWND hWnd,UINT Message,WPARAM wParam,LPARAM lParam
 	class cibboncontrolbase;
 	
 class observer
@@ -39,7 +40,7 @@ class observer
 	{
 		
 	public:
-		using winfunc = std::function<LRESULT CALLBACK(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)>;
+		using winfunc = std::function<bool CALLBACK(WINPAR)>;
 		cuiwindowbase();
 		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_OVERLAPPEDWINDOW, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		virtual ~cuiwindowbase();
@@ -52,7 +53,7 @@ class observer
 		{
 			RECT rect;
 			GetClientRect(m_hWnd,&rect);
-			return D2D1::RectF( rect.left, rect.top, rect.right, rect.bottom );
+			return D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
 		}
 		void addevents(UINT Message, winfunc Func);
 	protected:
@@ -97,7 +98,6 @@ class observer
 		virtual ~cibboncontrolbase() = default;
 		void HandleNotify(cuievent*) override;
 		
-		//virtual void InitialEvents() = 0;
 		void setwindowtext(const std::wstring& text)
 		{
 			windowtext = text;

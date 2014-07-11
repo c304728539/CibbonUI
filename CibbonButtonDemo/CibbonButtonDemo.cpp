@@ -1,24 +1,25 @@
 #include "..\\CibbonUI\\cibbonwindows.h"
 
 
+using namespace cibbonui;
+
 int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
-	_In_opt_ HINSTANCE hPrevInstance,
-		_In_ LPTSTR    lpCmdLine,
-		_In_ int       nCmdShow)
+	_In_opt_ HINSTANCE ,
+		_In_ LPTSTR  ,
+		_In_ int)
 	{
-		UNREFERENCED_PARAMETER(hPrevInstance);
-		UNREFERENCED_PARAMETER(lpCmdLine);
-		cibbonui::cuistdwindow MainWindow(hInstance, L"hah");
-		cibbonui::ButtonPattern Pattern(MainWindow.gethwnd());
-		cibbonui::cuibutton Buttontest(&Pattern, D2D1::RectF(20, 20, 70, 70), L"Button Demo");
-		Buttontest.Onclick([]()->void{::MessageBox(0,L"haha",L"Demo",0); });
+		cuistdwindow MainWindow(hInstance, L"haha");
+		ButtonPattern Pattern(MainWindow.gethwnd());
+		cuibutton Buttontest(&Pattern, D2D1::RectF(120, 120, 220, 150), L"ÍË³ö");
+		Buttontest.Onclick([]()->void{::MessageBox(0,L"haha",L"Demo",0);
+		//::PostQuitMessage(0); 
+		});
 		MainWindow.registerobserver(&Buttontest);
 		auto hWnd = MainWindow.gethwnd();
-		MainWindow.addevents(WM_LBUTTONDOWN, [hWnd](HWND, UINT, WPARAM, LPARAM)->LRESULT{
+		MainWindow.addevents(WM_LBUTTONDOWN, [hWnd](WINPAR)->bool{
 			::SendMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0); 
-			return cibbonui::already;
+			return already;
 		});
 		MainWindow.run();
-		//CaptionTest test(hInstance);
 		return 0;
 	}

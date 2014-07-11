@@ -17,7 +17,7 @@ namespace cibbonui{
 		void drawrect(const CRect& rect,float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void FillRect(const D2D1_RECT_F& rect, int color = D2D1::ColorF::White);
-		void drawtext(std::wstring text, cint fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
+		void drawtext(std::wstring text, float fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
 	private:
 
 		cuirendermanager() = default;
@@ -40,7 +40,7 @@ namespace cibbonui{
 		void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
 		ID2D1SolidColorBrush* getBrush(int color);
-		IDWriteTextFormat* getFormat(cint fontsize, std::wstring fontname = L"Microsoft YaHei");
+		IDWriteTextFormat* getFormat(float fontsize, std::wstring fontname = L"Microsoft YaHei");
 	};
 
 
