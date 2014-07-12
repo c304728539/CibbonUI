@@ -16,7 +16,6 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		 ::PostQuitMessage(0); 
 		});
 		MainWindow.registerobserver(&Buttontest);
-		//auto hWnd = MainWindow.gethwnd();
 		MainWindow.addevents(WM_LBUTTONDOWN, [](WINPAR)->bool{
 			::SendMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0); 
 			return already;
