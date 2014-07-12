@@ -50,6 +50,7 @@ namespace cibbonui
 	{
 		cuieventenum eventname;
 		POINT eventposition;
+		//cuievent(CPointf point)
 		virtual ~cuievent() = default;
 	};
 	struct cuibuttonevent : public cuievent

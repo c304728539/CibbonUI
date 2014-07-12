@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "cibbonwindows.h"
+#include "cibbonwindowbase.h"
 
 using namespace std;
 using namespace D2D1;
@@ -24,7 +24,7 @@ namespace cibbonui
 			(*ppInterfaceToRelease) = nullptr;
 		}
 	}
-	cuirendermanager::cuirendermanager(HWND hWnd) :m_hWnd(hWnd), ifbegin(false), beginnum(0)
+	cuirendermanager::cuirendermanager(HWND hWnd) :m_hWnd(hWnd), ifbegin(false), beginnum(0), falsepRT(nullptr)
 	{
 		CreateDeviceIndependentResources();
 		CreateDeviceResources();
@@ -33,10 +33,10 @@ namespace cibbonui
 
 	cuirendermanager::~cuirendermanager()
 	{
-
 		Free(&pD2DFactory);
 		Free(&pRT);
-		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{pr.second->Release(); });
+		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{Free(&pr.second); });
+		//_CrtDumpMemoryLeaks();
 	}
 
 	std::shared_ptr<cuirendermanager> cuirendermanager::getManager(HWND hWnd)
@@ -78,25 +78,19 @@ namespace cibbonui
 		if (FAILED(hr)) std::abort();
 
 	}
-	inline void cuirendermanager::clearall(cint Color)
+	 void cuirendermanager::clearall(cint Color)
 	{
 		return pRT->Clear(ColorF(Color));
 	}
 
-	inline void cuirendermanager::begindraw()
+	 void cuirendermanager::begindraw()
 	{
-
-		if (InterlockedIncrement(&beginnum)== 1)
-			pRT->BeginDraw();
+		 pRT->BeginDraw();
 	}
 
 	void cuirendermanager::enddraw()
 	{
-		if (!InterlockedDecrement(&beginnum))
-		{
-			HRESULT hr = pRT->EndDraw();
-		    //if (FAILED(hr)) throw "haha";
-		}
+		pRT->EndDraw();
 	}
 
 	ID2D1SolidColorBrush* cuirendermanager::getBrush(cint color)
@@ -136,12 +130,12 @@ namespace cibbonui
 		return pRT->DrawRectangle(rect, getBrush(color), linewidth);
 	}
 
-	inline void cuirendermanager::drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth, cint color)
+	 void cuirendermanager::drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth, cint color)
 	{
 		return pRT->DrawLine(ltop, rbottom, getBrush(color), linewidth);
 	}
 
-	inline void cuirendermanager::FillRect(const D2D1_RECT_F& rect, cint color)
+	void cuirendermanager::FillRect(const D2D1_RECT_F& rect, cint color)
 	{
 		return pRT->FillRectangle(rect, getBrush(color));
 	}
@@ -167,59 +161,17 @@ namespace cibbonui
 	{
 
 	}
-	inline void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
+	 void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
 		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),2* sqrt(pControl->getPosition().bottom - pControl->getPosition().top), pControl->getPosition(), Alig, Color);
 	}
 
-	ButtonPattern::ButtonPattern(HWND hWnd) : PatternManagerBase(hWnd)
-	{
-
-	}
-	void ButtonPattern::drawdown(cibboncontrolbase* pControl)
-	{
-		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::SkyBlue);
-		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
-		pRendermanager->enddraw();
-	}
-	void ButtonPattern::drawusual(cibboncontrolbase* pControl)
-	{
-		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::White);
-		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
-		pRendermanager->enddraw();
-	}
-	void ButtonPattern::drawfocus(cibboncontrolbase* pControl)
-	{
-
-	}
-	void ButtonPattern::drawmove(cibboncontrolbase* pControl)
-	{
-		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::LightBlue);
-		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
-		pRendermanager->enddraw();
-	}
-	inline void ButtonPattern::drawup(cibboncontrolbase* pControl)
-	{
-		Sleep(2000);
-		return drawusual(pControl);
-	}
-
-	void ButtonPattern::initdraw(cibboncontrolbase* pControl)
-	{
-		pRendermanager->begindraw();
-		pRendermanager->clearall();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::White);
-		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
-		pRendermanager->enddraw();
-	}
+	
 
 	/******************************************************************
 	*                                                                 *
 	*                                                                 *
-	*                  Control                                        *
+	*                  Windows & ControlBase                          *
 	*                                                                 *
 	*                                                                 *
 	*                                                                 *
@@ -228,6 +180,10 @@ namespace cibbonui
 
 	cuiwindowbase::cuiwindowbase()
 	{
+	}
+	cuiwindowbase::~cuiwindowbase()
+	{
+		
 	}
 
 	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width, cint _height, cstyle _style)
@@ -251,9 +207,6 @@ namespace cibbonui
 		runmessageloop();
 	}
 
-	cuiwindowbase::~cuiwindowbase()
-	{
-	}
 
 	inline void cuiwindowbase::runmessageloop()
 	{
@@ -305,6 +258,7 @@ namespace cibbonui
 				hWnd,
 				GWLP_USERDATA,
 				PtrToUlong(pwindow));
+
 		}
 		else
 		{
@@ -366,22 +320,31 @@ namespace cibbonui
 			return notyet;
 		}
 		);
-		addhelper(WM_LBUTTONDOWN, lbuttondown);
+		
 		addhelper(WM_MOUSEMOVE, mousemove);
-		addhelper(WM_LBUTTONUP, lbuttonup);
+		
 		addhelper(WM_RBUTTONDOWN, rbuttondown);
 		addhelper(WM_RBUTTONUP, rbuttonup);
 		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick);
+		addevents(WM_CREATE, [](WINPAR)->bool{
+			auto x = cuirendermanager::getManager(hWnd);
+			x->begindraw();
+			x ->clearall();
+			x->enddraw();
+			return notyet;
+		});
+		addhelper(WM_CREATE, controlinit);
 		addevents(WM_LBUTTONDOWN, [this](WINPAR)->bool
 		{
 			SetCapture(gethwnd());
 			return notyet;
 		});
+		addhelper(WM_LBUTTONDOWN, lbuttondown);
 		addevents(WM_LBUTTONUP, [this](WINPAR)->bool
 		{
 			ReleaseCapture();
 			return notyet;
-		});
+		});addhelper(WM_LBUTTONUP, lbuttonup);
 	}
 
 	inline void cuistdwindow::addhelper(UINT Message, cuieventenum cuienum)
@@ -406,12 +369,18 @@ namespace cibbonui
 		ifin(false)
 	{
 		rPosition = { static_cast<LONG>(Position.left), static_cast<LONG>(Position.top), static_cast<LONG>(Position.right), static_cast<LONG>(Position.bottom) };
+		int x = 2;
+	}
+
+	cibboncontrolbase::~cibboncontrolbase()
+	{
+		delete pPatternManager;
 	}
 
 	void cibboncontrolbase::HandleNotify(cuievent* pceb)
 	{
 		if (pceb->eventname == controlinit) goto notify;
-		if (!PtInRect(&rPosition, pceb->eventposition))
+		/*if (!PtInRect(&rPosition, pceb->eventposition))
 		{
 			if (!iffocus && pceb->eventname != mousemove) return;
 			if (!ifin)
@@ -430,7 +399,16 @@ namespace cibbonui
 				pceb->eventname = mousemovein;
 				ifin = true;
 			}
+		}*/
+	    bool x(PtInRect(&rPosition, pceb->eventposition));
+		if (pceb->eventname == mousemove)
+		{
+			if ((!x && !ifin) /*|| (x && ifin)*/) return;
+			pceb->eventname = x ? mousemovein : mousemoveout;
+			ifin = x;
 		}
+		/*else if (!iffocus&&pceb->eventname!=lbuttondown)
+			return;*/
 	notify:
 		auto it = EventHandler.find(pceb->eventname);
 		if (it != EventHandler.end())
@@ -441,46 +419,7 @@ namespace cibbonui
 	}
 
 
-	cuibutton::cuibutton(PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
-		:cibboncontrolbase(_pPatternManager, _Position, _text, Enable)
-	{
-		initevents();
-	}
-	//绘制事件
-	void cuibutton::initevents()
-	{
-		addevents(controlinit, [this]()->void{
-			static_cast<ButtonPattern*>(pPatternManager)->initdraw(this);
-		});
-		addevents(lbuttondown, [this]()->void{
-			static_cast<ButtonPattern*>(pPatternManager)->drawdown(this);
-		});
-		auto Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
-			auto x = static_cast<cuibutton*>(p);
-			static_cast<ButtonPattern*>(x->getPatternManager())->drawup(x);
-			return 0;
-		});
-		addevents(lbuttonup, [this, Func]()->void{
-			_beginthreadex(0, 0,
-				Func,
-				this, 0, 0);  });//添加动画
-		addevents(mousemovein, [this]()->void{
-			static_cast<ButtonPattern*>(pPatternManager)->drawmove(this);
-		});
-		Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
-			auto x = static_cast<cuibutton*>(p);
-			static_cast<ButtonPattern*>(x->getPatternManager())->drawusual(x);
-			return 0;
-		});
-		addevents(mousemoveout, [this, Func]()->void{
-			_beginthreadex(0, 0,
-				Func,
-				this, 0, 0);  });//添加动画
-	}
-	void cuibutton::Onclick(const std::function<void()>& func)
-	{
-		return addevents(lbuttonup, func);
-	}
+	
 
 }
 

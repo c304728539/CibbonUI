@@ -34,6 +34,7 @@ namespace cibbonui{
 
 		ID2D1Factory* pD2DFactory;
 		ID2D1HwndRenderTarget* pRT;
+		ID2D1HwndRenderTarget* falsepRT;
 		IDWriteFactory* pDwFactory;
 		
 		
@@ -61,18 +62,21 @@ namespace cibbonui{
 	
 	};
 
-
-	class ButtonPattern :public PatternManagerBase
+	/*class CCaptionPattern : public ButtonPattern
 	{
 	public:
-		ButtonPattern(HWND hWnd);
-		virtual void drawusual(cibboncontrolbase* pControl) override;
-		virtual void drawfocus(cibboncontrolbase* pControl) override;
-		virtual void drawmove(cibboncontrolbase* pControl) override;
-		virtual void drawdown(cibboncontrolbase* pControl);
-		virtual void drawup(cibboncontrolbase* pControl);
-		virtual void initdraw(cibboncontrolbase* pControl) override;
-	};
+		CCaptionPattern(HWND hWnd);
+		~CCaptionPattern();
+		void drawusual(cibboncontrolbase* pControl) override final ;
+		void drawfocus(cibboncontrolbase* pControl) override final;
+		void drawmove(cibboncontrolbase* pControl) override final  ;
+		void drawdown(cibboncontrolbase* pControl) override final ;
+		void drawup(cibboncontrolbase* pControl) override final ;
+		void initdraw(cibboncontrolbase* pControl) override  final;
+	private:
+
+	};*/
+
 	template<layoutenum L>
 	class LayoutManager
 	{
