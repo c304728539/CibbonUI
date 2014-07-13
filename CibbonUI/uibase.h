@@ -7,7 +7,18 @@ namespace cibbonui
 	using CRect = D2D1_RECT_F;
 	const bool already = true;
 	const bool notyet = false;
-	//using 
+
+	const int Captionheight = 26;
+	const int closebuttonwidth = 34;
+
+	const int defaultbackgroundcolor = 0xeeeef2;
+	const int defaultcontentcolor = 0x1e1e1e;
+	const int defaultdisabledcontentcolor = 0xc3c3c6;
+	const int defaultmoveinbackgroundcolor = 0xfcfcfc;
+	const int defaultmoveincontentcolor = 0x007bcb;
+	const int defaultclickbackgroundcolor = 0x007acd;
+	const int defaultclickcontentcolor = 0xfffdfd;
+	//using eeeef2181818181818eeedf21c1c1c
 	
 	enum cstyle
 	{

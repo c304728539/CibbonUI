@@ -36,14 +36,12 @@ namespace cibbonui{
 	}
 	inline void ButtonPattern::drawup(cibboncontrolbase* pControl)
 	{
-		//Sleep(2000);
 		return drawusual(pControl);
 	}
 
 	void ButtonPattern::initdraw(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
-		//pRendermanager->clearall();
 		pRendermanager->FillRect(pControl->getPosition(), ColorF::White);
 		drawtexthelper(pControl, Alignmentcenter, ColorF::Black);
 		pRendermanager->enddraw();
@@ -58,34 +56,31 @@ namespace cibbonui{
 	void closebuttonPattern::drawusual(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::White);
-		drawhelper(pControl);
+		pRendermanager->FillRect(pControl->getPosition(), defaultbackgroundcolor);
+		drawhelper(pControl,defaultcontentcolor);
 		pRendermanager->enddraw();
 	}
 
-	void closebuttonPattern::drawhelper(cibboncontrolbase* pControl)
+	void closebuttonPattern::drawhelper(cibboncontrolbase* pControl,cint Color)
 	{
 		auto x = pControl->getPosition();
-		const float gama = 1.f / 3.f;     
-		float sdistance = x.right - x.left;
-		float vdistance = x.bottom - x.top;
-		pRendermanager->drawline(Point2F(x.left + sdistance * gama, x.top + vdistance *gama), Point2F(x.left + sdistance *(1 - gama), x.top + vdistance*(1 - gama)));
-		pRendermanager->drawline(Point2F(x.left + sdistance * gama, x.top + vdistance * (1 - gama)), Point2F(x.left + sdistance *(1 - gama), x.top + vdistance* gama));
+		pRendermanager->drawline(Point2F(x.left + 13, 9), Point2F(x.left + 22, 17), 1.5f, Color);
+		pRendermanager->drawline(Point2F(x.left + 13, 17), Point2F(x.left + 22, 9), 1.5f, Color);
 	}
 
 	void closebuttonPattern::drawmove(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::Gray);
-		drawhelper(pControl);
+		pRendermanager->FillRect(pControl->getPosition(), defaultmoveinbackgroundcolor);
+		drawhelper(pControl,defaultmoveincontentcolor);
 		pRendermanager->enddraw();
 	}
 
 	void closebuttonPattern::drawdown(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
-		pRendermanager->FillRect(pControl->getPosition(), ColorF::SkyBlue);
-		drawhelper(pControl);
+		pRendermanager->FillRect(pControl->getPosition(), defaultclickbackgroundcolor);
+		drawhelper(pControl,defaultclickcontentcolor);
 		pRendermanager->enddraw();
 	}
 	void closebuttonPattern::initdraw(cibboncontrolbase* pControl)
@@ -97,6 +92,56 @@ namespace cibbonui{
 		return;
 	}
 	void closebuttonPattern::drawup(cibboncontrolbase* pControl)
+	{
+		return drawusual(pControl);
+	}
+
+
+	minimizebuttonPattern::minimizebuttonPattern(HWND hWnd) :
+		ButtonPattern(hWnd)
+	{
+
+	}
+
+	void minimizebuttonPattern::drawusual(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), defaultbackgroundcolor);
+		drawhelper(pControl, defaultcontentcolor);
+		pRendermanager->enddraw();
+	}
+
+	void minimizebuttonPattern::drawhelper(cibboncontrolbase* pControl, cint Color)
+	{
+		auto x = pControl->getPosition();
+		pRendermanager->drawline(Point2F(x.left + 13, 15), Point2F(x.left + 23, 15), 3.0f, Color);
+		//pRendermanager->drawline(Point2F(x.left + 12, 17), Point2F(x.left + 22, 9), 2.0f, Color);
+	}
+
+	void minimizebuttonPattern::drawmove(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), defaultmoveinbackgroundcolor);
+		drawhelper(pControl, defaultmoveincontentcolor);
+		pRendermanager->enddraw();
+	}
+
+	void minimizebuttonPattern::drawdown(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), defaultclickbackgroundcolor);
+		drawhelper(pControl, defaultclickcontentcolor);
+		pRendermanager->enddraw();
+	}
+	void minimizebuttonPattern::initdraw(cibboncontrolbase* pControl)
+	{
+		return drawusual(pControl);
+	}
+	void minimizebuttonPattern::drawfocus(cibboncontrolbase* pControl)
+	{
+		return;
+	}
+	void minimizebuttonPattern::drawup(cibboncontrolbase* pControl)
 	{
 		return drawusual(pControl);
 	}

@@ -1,8 +1,9 @@
 #include "..\\CibbonUI\\cibboncore.h"
-
+#include <string>
 
 using namespace cibbonui;
 using namespace D2D1;
+using namespace std;
 
 int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE ,
@@ -11,15 +12,17 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 {
 	//_CrtSetBreakAlloc(268);
 	cuistdwindow MainWindow(hInstance, L"haha");
-	cuibutton<closebuttonPattern> Buttontest(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right - 20, 0, MainWindow.getPosition().right, 20), L"ÍË³ö");
-	Buttontest.Onclick([]()->void{::MessageBox(0, L"haha", L"Demo", 0);
+	cuibutton<closebuttonPattern> closebutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right-closebuttonwidth, 0, MainWindow.getPosition().right, Captionheight), L"ÍË³ö");
+	closebutton.Onclick([]()->void{//::MessageBox(0, L"haha", L"Demo", 0);
+	::PostQuitMessage(0);
+	});
+	cuibutton<minimizebuttonPattern> minibutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right - 2 * closebuttonwidth, 0, MainWindow.getPosition().right - closebuttonwidth, Captionheight), L"ÍË³ö");
+	minibutton.Onclick([&]()->void{//::MessageBox(0, L"haha", L"Demo", 0);
 	//::PostQuitMessage(0);
+	::CloseWindow(MainWindow.gethwnd());
 	});
-	MainWindow.registerobserver(&Buttontest);
-	MainWindow.addevents(WM_LBUTTONDOWN, [](WINPAR)->bool{
-		::SendMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
-		return already;
-	});
+	MainWindow.registerobserver(&closebutton);
+	MainWindow.registerobserver(&minibutton);
 	MainWindow.run();
 	
 	return 0;

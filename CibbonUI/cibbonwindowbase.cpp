@@ -68,9 +68,9 @@ namespace cibbonui
 		GetClientRect(m_hWnd, &rect);
 		windowrect = D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
 		hr = pD2DFactory->CreateHwndRenderTarget(
-			RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
+			RenderTargetProperties(/*D2D1_RENDER_TARGET_TYPE_DEFAULT,
 			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
-			D2D1_ALPHA_MODE_PREMULTIPLIED)),
+			D2D1_ALPHA_MODE_PREMULTIPLIED)*/),
 			HwndRenderTargetProperties(m_hWnd, SizeU(static_cast<UINT>(rect.right - rect.left),
 			static_cast<UINT>(rect.bottom - rect.top))),
 			&pRT
@@ -78,6 +78,12 @@ namespace cibbonui
 		if (FAILED(hr)) std::abort();
 
 	}
+
+	void cuirendermanager::resize(cint x, cint y)
+	{
+		pRT->Resize(SizeU(x, y));
+	}
+
 	 void cuirendermanager::clearall(cint Color)
 	{
 		return pRT->Clear(ColorF(Color));
@@ -228,6 +234,7 @@ namespace cibbonui
 		wcex.hInstance = hInst;
 		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wcex.hbrBackground = 0;
+		wcex.lpszMenuName = NULL;
 		wcex.lpszClassName = L"cuiwindow";
 		RegisterClassEx(&wcex);
 		m_hWnd = CreateWindow(
@@ -244,6 +251,7 @@ namespace cibbonui
 			this
 			);
 		if (!m_hWnd) std::abort();
+		
 		
 	}
 
@@ -275,8 +283,10 @@ namespace cibbonui
 			{
 				bool ifall = false;
 				for (auto x : it->second)
-					ifall = x(hWnd,Message,wParam,lParam);
-				if (ifall) return 0;
+				{
+					ifall = x(hWnd, Message, wParam, lParam);
+					if (ifall) return 0;
+				}
 			}
 		}
 		return ::DefWindowProc(hWnd, Message, wParam, lParam);
@@ -307,51 +317,60 @@ namespace cibbonui
 		);
 		addevents(WM_PAINT, [this](WINPAR)->bool
 		{
+			PAINTSTRUCT ps;
+			auto hdc = BeginPaint(hWnd, &ps);
+			auto x = cuirendermanager::getManager(hWnd);
+			x->begindraw();
+			x->clearall(defaultbackgroundcolor);
+			x->drawtext(title, 3 * sqrt( Captionheight), RectF(20, 5, getPosition().right, Captionheight),Alignmentleft);
+			x->enddraw();
 			cuievent bevent;
 			bevent.eventname = cuieventenum::controlinit;
 			notifyobservers(&bevent);
+			EndPaint(hWnd, &ps);
 			return notyet;
 		});
 		addevents(WM_SIZE, [](WINPAR)->LRESULT
 		{
-			LONG_PTR Style = ::GetWindowLongPtr(hWnd, GWL_STYLE);
-			Style = Style &~WS_CAPTION &~WS_SYSMENU &~WS_SIZEBOX;
-			::SetWindowLongPtr(hWnd, GWL_STYLE, Style);
-			return notyet;
+			cuirendermanager::getManager(hWnd)->resize( LOWORD(lParam), HIWORD(lParam));
+			return already;
 		}
 		);
 		
-		addhelper(WM_MOUSEMOVE, mousemove);
+		addhelper(WM_MOUSEMOVE, mousemove,true);
+		addevents(WM_LBUTTONDOWN, [this](WINPAR)->bool{
+			if (GET_Y_LPARAM(lParam) < Captionheight && GET_X_LPARAM(lParam) < getPosition().right - 2 * closebuttonwidth)
+			{
+				::SendMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+				return already;
+			}
+			else
+				SetCapture(hWnd);/**/
+			return notyet;
+		});
+		addhelper(WM_LBUTTONDOWN, lbuttondown,true);
 		
-		addhelper(WM_RBUTTONDOWN, rbuttondown);
-		addhelper(WM_RBUTTONUP, rbuttonup);
-		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick);
-		addevents(WM_CREATE, [](WINPAR)->bool{
-			auto x = cuirendermanager::getManager(hWnd);
-			x->begindraw();
-			x ->clearall();
-			x->enddraw();
-			return notyet;
-		});
-		addhelper(WM_CREATE, controlinit);
-		addevents(WM_LBUTTONDOWN, [this](WINPAR)->bool
-		{
-			SetCapture(gethwnd());
-			return notyet;
-		});
-		addhelper(WM_LBUTTONDOWN, lbuttondown);
-		addevents(WM_LBUTTONUP, [this](WINPAR)->bool
-		{
+		addevents(WM_LBUTTONUP, [=](WINPAR)->bool{
 			ReleaseCapture();
-			return notyet;
-		});addhelper(WM_LBUTTONUP, lbuttonup);
+			cuievent bevent;
+			bevent.eventposition = { GET_X_LPARAM(lParam)  , GET_Y_LPARAM(lParam) };
+			bevent.eventname = lbuttonup;
+			notifyobservers(&bevent);
+			return already;
+		});
+		addhelper(WM_RBUTTONDOWN, rbuttondown,false);
+		addhelper(WM_RBUTTONUP, rbuttonup,true);
+		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick,true);
+		addhelper(WM_PAINT, controlinit,false);
+		
+		
 	}
 
-	inline void cuistdwindow::addhelper(UINT Message, cuieventenum cuienum)
+	inline void cuistdwindow::addhelper(UINT Message, cuieventenum cuienum,bool bif)
 	{
-		addevents(Message, [=](HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)->LRESULT{
+		addevents(Message, [=](WINPAR)->bool{
 			cuievent bevent;
-			bevent.eventposition = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			bevent.eventposition = { GET_X_LPARAM(lParam) , GET_Y_LPARAM(lParam) };
 			bevent.eventname = cuienum;
 			notifyobservers(&bevent);
 			return notyet;
@@ -369,7 +388,6 @@ namespace cibbonui
 		ifin(false)
 	{
 		rPosition = { static_cast<LONG>(Position.left), static_cast<LONG>(Position.top), static_cast<LONG>(Position.right), static_cast<LONG>(Position.bottom) };
-		int x = 2;
 	}
 
 	cibboncontrolbase::~cibboncontrolbase()
@@ -377,35 +395,26 @@ namespace cibbonui
 		delete pPatternManager;
 	}
 
+
+	template<typename P,typename R>
+	inline bool ifinrect(P Point, R Rect)
+	{
+		return Point.x > Rect.left && Point.x < Rect.right && Point.y > Rect.top && Point.y < Rect.bottom;
+	}
+
 	void cibboncontrolbase::HandleNotify(cuievent* pceb)
 	{
 		if (pceb->eventname == controlinit) goto notify;
-		/*if (!PtInRect(&rPosition, pceb->eventposition))
+		bool x(ifinrect( pceb->eventposition,rPosition));
+		if (pceb->eventname == mousemove)
 		{
-			if (!iffocus && pceb->eventname != mousemove) return;
-			if (!ifin)
-				return;
-			else if (pceb->eventname == mousemove)
-			{
-				pceb->eventname = mousemoveout;
-				ifin = false;
-			}
+			if ((!x && !ifin) || (x && ifin)) return;
+			pceb->eventname = x ? mousemovein : mousemoveout;
+			ifin = x;
 		}
 		else
 		{
-			if (ifin && pceb->eventname == mousemove) return;
-			if (!ifin && pceb->eventname == mousemove)
-			{
-				pceb->eventname = mousemovein;
-				ifin = true;
-			}
-		}*/
-	    bool x(PtInRect(&rPosition, pceb->eventposition));
-		if (pceb->eventname == mousemove)
-		{
-			if ((!x && !ifin) /*|| (x && ifin)*/) return;
-			pceb->eventname = x ? mousemovein : mousemoveout;
-			ifin = x;
+			if (!x) return;
 		}
 		/*else if (!iffocus&&pceb->eventname!=lbuttondown)
 			return;*/

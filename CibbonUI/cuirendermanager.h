@@ -12,6 +12,7 @@ namespace cibbonui{
 		~cuirendermanager();
 
 		void clearall(cint color = D2D1::ColorF::White);
+		void resize(cint x, cint y);
 		void begindraw();
 		void enddraw();
 		void drawrect(const CRect& rect,float linewidth = 1.0f, int color = D2D1::ColorF::Black);

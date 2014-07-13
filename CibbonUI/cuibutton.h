@@ -94,7 +94,21 @@ namespace cibbonui{
 		virtual void initdraw(cibboncontrolbase* pControl) override;
 		virtual ~closebuttonPattern() = default;
 	private:
-		void drawhelper(cibboncontrolbase* pControl);
+		void drawhelper(cibboncontrolbase* pControl, cint Color);
+	};
+	class minimizebuttonPattern :public ButtonPattern
+	{
+	public:
+		minimizebuttonPattern(HWND hWnd);
+		virtual void drawusual(cibboncontrolbase* pControl) override;
+		virtual void drawfocus(cibboncontrolbase* pControl) override;
+		virtual void drawmove(cibboncontrolbase* pControl) override;
+		virtual void drawdown(cibboncontrolbase* pControl);
+		virtual void drawup(cibboncontrolbase* pControl);
+		virtual void initdraw(cibboncontrolbase* pControl) override;
+		virtual ~minimizebuttonPattern() = default;
+	private:
+		void drawhelper(cibboncontrolbase* pControl, cint Color);
 	};
 
 
