@@ -23,6 +23,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	});
 	MainWindow.registerobserver(&closebutton);
 	MainWindow.registerobserver(&minibutton);
+	glowwindow gw(&MainWindow);
 	MainWindow.run();
 	
 	return 0;

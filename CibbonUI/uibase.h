@@ -10,6 +10,9 @@ namespace cibbonui
 
 	const int Captionheight = 26;
 	const int closebuttonwidth = 34;
+	const int glowoffset = 2;
+	const int shadowsharpness = 5;
+	const int shadowdarkness = 150;
 
 	const int defaultbackgroundcolor = 0xeeeef2;
 	const int defaultcontentcolor = 0x1e1e1e;
@@ -19,7 +22,13 @@ namespace cibbonui
 	const int defaultclickbackgroundcolor = 0x007acd;
 	const int defaultclickcontentcolor = 0xfffdfd;
 	//using eeeef2181818181818eeedf21c1c1c
-	
+	inline cdword PreMultiply(COLORREF cl, unsigned char nAlpha)
+	{
+		// It's strange that the byte order of RGB in 32b BMP is reverse to in COLORREF
+		return (GetRValue(cl) * (cdword)nAlpha / 255) << 16 |
+			(GetGValue(cl) * (cdword)nAlpha / 255) << 8 |
+			(GetBValue(cl) * (cdword)nAlpha / 255);
+	}
 	enum cstyle
 	{
 		daystyle,

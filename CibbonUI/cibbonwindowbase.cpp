@@ -68,9 +68,9 @@ namespace cibbonui
 		GetClientRect(m_hWnd, &rect);
 		windowrect = D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
 		hr = pD2DFactory->CreateHwndRenderTarget(
-			RenderTargetProperties(/*D2D1_RENDER_TARGET_TYPE_DEFAULT,
+			RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
 			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
-			D2D1_ALPHA_MODE_PREMULTIPLIED)*/),
+			D2D1_ALPHA_MODE_PREMULTIPLIED)),
 			HwndRenderTargetProperties(m_hWnd, SizeU(static_cast<UINT>(rect.right - rect.left),
 			static_cast<UINT>(rect.bottom - rect.top))),
 			&pRT
@@ -192,7 +192,7 @@ namespace cibbonui
 		
 	}
 
-	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width, cint _height, cstyle _style)
+	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle , cint _width, cint _height, cstyle _style)
 		:
 		hInst(_hInst),
 		title(_title),
@@ -201,7 +201,8 @@ namespace cibbonui
 		height(_height),
 		realstyle(_style),
 		windowmessage(),
-		subject()
+		subject(),
+		extendstyle(dwExStyle)
 	{
 
 	}
@@ -298,8 +299,8 @@ namespace cibbonui
 		windowmessage[Message].push_back(Func);
 	}
 
-	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width, cint _height, cstyle _style)
-		:cuiwindowbase(_hInst, _title, _windowstyle, _width, _height, _style)
+	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width, cint _height, cstyle _style)
+		:cuiwindowbase(_hInst, _title, _windowstyle, dwExStyle, _width, _height, _style)
 	{
 		initevents();
 		init();
@@ -333,7 +334,7 @@ namespace cibbonui
 		addevents(WM_SIZE, [](WINPAR)->LRESULT
 		{
 			cuirendermanager::getManager(hWnd)->resize( LOWORD(lParam), HIWORD(lParam));
-			return already;
+			return notyet;
 		}
 		);
 		
@@ -361,7 +362,7 @@ namespace cibbonui
 		addhelper(WM_RBUTTONDOWN, rbuttondown,false);
 		addhelper(WM_RBUTTONUP, rbuttonup,true);
 		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick,true);
-		addhelper(WM_PAINT, controlinit,false);
+		//addhelper(WM_PAINT, controlinit,false);
 		
 		
 	}
@@ -376,6 +377,440 @@ namespace cibbonui
 			return notyet;
 		});
 	}
+
+	glowwindow::glowwindow(cuiwindowbase* _pOwner, cint size)
+		:pOwner(_pOwner), m_size(size), ifupdate(false), status(shadowenabled), m_WndSize(0)
+	{
+		init();
+		initevents();
+	}
+
+	void glowwindow::init()
+	{
+		WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
+		wcex.style = CS_HREDRAW | CS_VREDRAW;
+		wcex.lpfnWndProc = DefWindowProc;
+		wcex.cbClsExtra = 0;
+		wcex.cbWndExtra = 0;
+		wcex.hInstance = pOwner->hInst;
+		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
+		wcex.hbrBackground = 0;
+		wcex.lpszMenuName = NULL;
+		wcex.lpszClassName = L"cuiglowwindow";
+		RegisterClassEx(&wcex);
+		thishwnd = CreateWindowEx(
+			WS_EX_LAYERED | WS_EX_TRANSPARENT,
+			L"cuiglowwindow",
+			NULL,
+			WS_POPUPWINDOW,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT, 
+			pOwner->m_hWnd,
+			0,
+			pOwner->hInst,
+			NULL
+			);
+		if (!thishwnd) std::abort();
+	}
+
+	void glowwindow::initevents()
+	{
+		pOwner->addevents(WM_MOVE,
+			[this](WINPAR)->bool{
+			if (status & shadowvisible)
+			{
+				RECT x;
+				GetWindowRect(pOwner->m_hWnd, &x);
+				::SetWindowPos(this->thishwnd, 0, x.left + glowoffset - m_size
+					, x.top + glowoffset - m_size, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+			}
+			return notyet;
+			
+		});
+
+
+		pOwner->addevents(WM_SIZE, [this](WINPAR)->bool
+		{
+			if ( status & shadowenabled)
+			{
+				if (SIZE_MAXIMIZED == wParam || SIZE_MINIMIZED == wParam)
+				{
+					ShowWindow(thishwnd, SW_HIDE);
+					status &= ~shadowvisible;
+				}
+				else
+				{
+					LONG_PTR Parentstyle = ::GetWindowLongPtr(pOwner->m_hWnd, GWL_STYLE);
+					if (Parentstyle & WS_VISIBLE)
+					{
+						status |= parentvisible;
+						if (!(status & shadowvisible))
+						{
+							status |= shadowvisible;
+							this->update();
+							ShowWindow(thishwnd, SW_SHOWNA);
+							this->ifupdate = true;
+						}
+						else if (LOWORD(lParam) > LOWORD(this->m_WndSize) || HIWORD(lParam) > HIWORD(this->m_WndSize))
+							this->ifupdate = true;
+						else
+						{
+							this->update();
+						}
+					}
+				}
+			}
+			this->m_WndSize = lParam;
+			return notyet;
+		});
+
+		pOwner->addevents(WM_PAINT, [this](WINPAR)->bool{
+			if (this->ifupdate)
+			{
+				this->update();
+				this->ifupdate = false;
+			}
+			return notyet;
+		});
+		//std::swap(pOwner->windowmessage[WM_PAINT][0], pOwner->windowmessage[WM_PAINT][1]);
+		//std::swap(pOwner->windowmessage[WM_SIZE][0], pOwner->windowmessage[WM_SIZE][1]);
+		//pOwner->windowmessage[WM_PAINT].insert(pOwner->windowmessage[WM_PAINT].begin(), pOwner->windowmessage[WM_PAINT].back());
+		//pOwner->windowmessage[WM_PAINT].pop_back();
+		pOwner->addevents(WM_EXITSIZEMOVE, [this](WINPAR)->bool
+		{
+			if (this->status & shadowvisible)
+				this->update();
+			return notyet;
+		});
+		pOwner->addevents(WM_SHOWWINDOW, [this](WINPAR)->bool
+		{
+			if (this->status & shadowenabled)
+			{
+				auto x = ::DefWindowProc(hWnd, Message, wParam, lParam);
+				if (!wParam)
+				{
+					::ShowWindow(this->thishwnd, SW_HIDE);
+					this->status &= ~(shadowvisible | parentvisible);
+				}
+				else
+				{
+					this->ifupdate = true;
+					this->show();
+				}
+				return already;
+			}
+			return notyet;
+		});
+
+		pOwner->addevents(WM_DESTROY, [this](WINPAR)->bool{
+			DestroyWindow(this->thishwnd);
+			return notyet;
+		});
+
+		pOwner->addevents(WM_PAINT, [this](WINPAR)->bool
+		{
+			this->show();
+			LONG_PTR Parentstyle = ::GetWindowLongPtr(pOwner->m_hWnd, GWL_STYLE);
+			if (Parentstyle & WS_VISIBLE)
+			{
+				status |= parentvisible;
+				if (!(status & shadowvisible))
+				{
+					status |= shadowvisible;
+				}
+			}
+			return notyet;
+		});
+	}
+
+	void glowwindow::update()
+	{
+		RECT WndRect;
+		GetWindowRect(pOwner->m_hWnd, &WndRect);
+		int nShadWndWid = WndRect.right - WndRect.left + m_size * 2;
+		int nShadWndHei = WndRect.bottom - WndRect.top + m_size * 2;
+
+		// Create the alpha blending bitmap
+		BITMAPINFO bmi;        // bitmap header
+
+		ZeroMemory(&bmi, sizeof(BITMAPINFO));
+		bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		bmi.bmiHeader.biWidth = nShadWndWid;
+		bmi.bmiHeader.biHeight = nShadWndHei;
+		bmi.bmiHeader.biPlanes = 1;
+		bmi.bmiHeader.biBitCount = 32;         // four 8-bit components
+		bmi.bmiHeader.biCompression = BI_RGB;
+		bmi.bmiHeader.biSizeImage = nShadWndWid * nShadWndHei * 4;
+
+		BYTE *pvBits;          // pointer to DIB section
+		HBITMAP hbitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&pvBits, NULL, 0);
+
+		ZeroMemory(pvBits, bmi.bmiHeader.biSizeImage);
+		MakeShadow((UINT32 *)pvBits, pOwner->m_hWnd, &WndRect);
+
+		HDC hMemDC = CreateCompatibleDC(NULL);
+		HBITMAP hOriBmp = (HBITMAP)SelectObject(hMemDC, hbitmap);
+
+		POINT ptDst = { WndRect.left + glowoffset - m_size, WndRect.top + glowoffset - m_size };
+		POINT ptSrc = { 0, 0 };
+		SIZE WndSize = { nShadWndWid, nShadWndHei };
+		BLENDFUNCTION blendPixelFunction = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+
+		MoveWindow(thishwnd, ptDst.x, ptDst.y, nShadWndWid, nShadWndHei, FALSE);
+
+		BOOL bRet = UpdateLayeredWindow(thishwnd, NULL, &ptDst, &WndSize, hMemDC,
+			&ptSrc, 0, &blendPixelFunction, ULW_ALPHA);
+
+		_ASSERT(bRet); // something was wrong....
+
+		// Delete used resources
+		SelectObject(hMemDC, hOriBmp);
+		DeleteObject(hbitmap);
+		DeleteDC(hMemDC);
+	}
+	void glowwindow::MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent)
+	{
+		// The shadow algorithm:
+		// Get the region of parent window,
+		// Apply morphologic erosion to shrink it into the size (ShadowWndSize - Sharpness)
+		// Apply modified (with blur effect) morphologic dilation to make the blurred border
+		// The algorithm is optimized by assuming parent window is just "one piece" and without "wholes" on it
+
+		// Get the region of parent window,
+		// Create a full rectangle region in case of the window region is not defined
+		HRGN hParentRgn = CreateRectRgn(0, 0, rcParent->right - rcParent->left, rcParent->bottom - rcParent->top);
+		//GetWindowRgn(hParent, hParentRgn);
+
+		// Determine the Start and end point of each horizontal scan line
+		SIZE szParent = { rcParent->right - rcParent->left, rcParent->bottom - rcParent->top };
+		SIZE szShadow = { szParent.cx + 2 * m_size, szParent.cy + 2 * m_size };
+		// Extra 2 lines (set to be empty) in ptAnchors are used in dilation
+		int nAnchors = max(szParent.cy, szShadow.cy);	// # of anchor points pares
+		int(*ptAnchors)[2] = new int[nAnchors + 2][2];
+		int(*ptAnchorsOri)[2] = new int[szParent.cy][2];	// anchor points, will not modify during erosion
+		ptAnchors[0][0] = szParent.cx;
+		ptAnchors[0][1] = 0;
+		ptAnchors[nAnchors + 1][0] = szParent.cx;
+		ptAnchors[nAnchors + 1][1] = 0;
+		if (m_size > 0)
+		{
+			// Put the parent window anchors at the center
+			for (int i = 0; i < m_size; i++)
+			{
+				ptAnchors[i + 1][0] = szParent.cx;
+				ptAnchors[i + 1][1] = 0;
+				ptAnchors[szShadow.cy - i][0] = szParent.cx;
+				ptAnchors[szShadow.cy - i][1] = 0;
+			}
+			ptAnchors += m_size;
+		}
+		for (int i = 0; i < szParent.cy; i++)
+		{
+			// find start point
+			int j;
+			for (j = 0; j < szParent.cx; j++)
+			{
+				if (PtInRegion(hParentRgn, j, i))
+				{
+					ptAnchors[i + 1][0] = j + m_size;
+					ptAnchorsOri[i][0] = j;
+					break;
+				}
+			}
+
+			if (j >= szParent.cx)	// Start point not found
+			{
+				ptAnchors[i + 1][0] = szParent.cx;
+				ptAnchorsOri[i][1] = 0;
+				ptAnchors[i + 1][0] = szParent.cx;
+				ptAnchorsOri[i][1] = 0;
+			}
+			else
+			{
+				// find end point
+				for (j = szParent.cx - 1; j >= ptAnchors[i + 1][0]; j--)
+				{
+					if (PtInRegion(hParentRgn, j, i))
+					{
+						ptAnchors[i + 1][1] = j + 1 + m_size;
+						ptAnchorsOri[i][1] = j + 1;
+						break;
+					}
+				}
+			}
+			// 		if(0 != ptAnchorsOri[i][1])
+			// 			_RPTF2(_CRT_WARN, "%d %d\n", ptAnchorsOri[i][0], ptAnchorsOri[i][1]);
+		}
+
+		if (m_size > 0)
+			ptAnchors -= m_size;	// Restore pos of ptAnchors for erosion
+		int(*ptAnchorsTmp)[2] = new int[nAnchors + 2][2];	// Store the result of erosion
+		// First and last line should be empty
+		ptAnchorsTmp[0][0] = szParent.cx;
+		ptAnchorsTmp[0][1] = 0;
+		ptAnchorsTmp[nAnchors + 1][0] = szParent.cx;
+		ptAnchorsTmp[nAnchors + 1][1] = 0;
+		int nEroTimes = 0;
+		// morphologic erosion
+		for (int i = 0; i < shadowsharpness - m_size; i++)
+		{
+			nEroTimes++;
+			//ptAnchorsTmp[1][0] = szParent.cx;
+			//ptAnchorsTmp[1][1] = 0;
+			//ptAnchorsTmp[szParent.cy + 1][0] = szParent.cx;
+			//ptAnchorsTmp[szParent.cy + 1][1] = 0;
+			for (int j = 1; j < nAnchors + 1; j++)
+			{
+				ptAnchorsTmp[j][0] = max(ptAnchors[j - 1][0], max(ptAnchors[j][0], ptAnchors[j + 1][0])) + 1;
+				ptAnchorsTmp[j][1] = min(ptAnchors[j - 1][1], min(ptAnchors[j][1], ptAnchors[j + 1][1])) - 1;
+			}
+			// Exchange ptAnchors and ptAnchorsTmp;
+			int(*ptAnchorsXange)[2] = ptAnchorsTmp;
+			ptAnchorsTmp = ptAnchors;
+			ptAnchors = ptAnchorsXange;
+		}
+
+		// morphologic dilation
+		ptAnchors += (m_size < 0 ? -m_size : 0) + 1;	// now coordinates in ptAnchors are same as in shadow window
+		// Generate the kernel
+		int nKernelSize = m_size > shadowsharpness ? m_size : shadowsharpness;
+		int nCenterSize = m_size > shadowsharpness ? (m_size - shadowsharpness) : 0;
+		UINT32 *pKernel = new UINT32[(2 * nKernelSize + 1) * (2 * nKernelSize + 1)];
+		UINT32 *pKernelIter = pKernel;
+		for (int i = 0; i <= 2 * nKernelSize; i++)
+		{
+			for (int j = 0; j <= 2 * nKernelSize; j++)
+			{
+				double dLength = sqrt((i - nKernelSize) * (i - nKernelSize) + (j - nKernelSize) * (double)(j - nKernelSize));
+				if (dLength < nCenterSize)
+					*pKernelIter = shadowdarkness << 24 | PreMultiply(ColorF::Black, shadowdarkness);
+				else if (dLength <= nKernelSize)
+				{
+					UINT32 nFactor = ((UINT32)((1 - (dLength - nCenterSize) / (shadowsharpness + 1)) * shadowdarkness));
+					*pKernelIter = nFactor << 24 | PreMultiply(ColorF::Black, nFactor);
+				}
+				else
+					*pKernelIter = 0;
+				//TRACE("%d ", *pKernelIter >> 24);
+				pKernelIter++;
+			}
+			//TRACE("\n");
+		}
+		// Generate blurred border
+		for (int i = nKernelSize; i < szShadow.cy - nKernelSize; i++)
+		{
+			int j;
+			if (ptAnchors[i][0] < ptAnchors[i][1])
+			{
+
+				// Start of line
+				for (j = ptAnchors[i][0];
+					j < min(max(ptAnchors[i - 1][0], ptAnchors[i + 1][0]) + 1, ptAnchors[i][1]);
+					j++)
+				{
+					for (int k = 0; k <= 2 * nKernelSize; k++)
+					{
+						UINT32 *pPixel = pShadBits +
+							(szShadow.cy - i - 1 + nKernelSize - k) * szShadow.cx + j - nKernelSize;
+						UINT32 *pKernelPixel = pKernel + k * (2 * nKernelSize + 1);
+						for (int l = 0; l <= 2 * nKernelSize; l++)
+						{
+							if (*pPixel < *pKernelPixel)
+								*pPixel = *pKernelPixel;
+							pPixel++;
+							pKernelPixel++;
+						}
+					}
+				}	// for() start of line
+
+				// End of line
+				for (j = max(j, min(ptAnchors[i - 1][1], ptAnchors[i + 1][1]) - 1);
+					j < ptAnchors[i][1];
+					j++)
+				{
+					for (int k = 0; k <= 2 * nKernelSize; k++)
+					{
+						UINT32 *pPixel = pShadBits +
+							(szShadow.cy - i - 1 + nKernelSize - k) * szShadow.cx + j - nKernelSize;
+						UINT32 *pKernelPixel = pKernel + k * (2 * nKernelSize + 1);
+						for (int l = 0; l <= 2 * nKernelSize; l++)
+						{
+							if (*pPixel < *pKernelPixel)
+								*pPixel = *pKernelPixel;
+							pPixel++;
+							pKernelPixel++;
+						}
+					}
+				}	// for() end of line
+
+			}
+		}	// for() Generate blurred border
+
+		// Erase unwanted parts and complement missing
+		UINT32 clCenter = shadowdarkness << 24 | PreMultiply(ColorF::Black, shadowdarkness);
+		for (int i = min(nKernelSize, max(m_size - glowoffset, 0));
+			i < max(szShadow.cy - nKernelSize, min(szParent.cy + m_size - glowoffset, szParent.cy + 2 * m_size));
+			i++)
+		{
+			UINT32 *pLine = pShadBits + (szShadow.cy - i - 1) * szShadow.cx;
+			if (i - m_size + glowoffset < 0 || i - m_size + glowoffset >= szParent.cy)	// Line is not covered by parent window
+			{
+				for (int j = ptAnchors[i][0]; j < ptAnchors[i][1]; j++)
+				{
+					*(pLine + j) = clCenter;
+				}
+			}
+			else
+			{
+				for (int j = ptAnchors[i][0];
+					j < min(ptAnchorsOri[i - m_size + glowoffset][0] + m_size - glowoffset, ptAnchors[i][1]);
+					j++)
+					*(pLine + j) = clCenter;
+				for (int j = max(ptAnchorsOri[i - m_size + glowoffset][0] + m_size - glowoffset, 0);
+					j < min(ptAnchorsOri[i - m_size + glowoffset][1] + m_size - glowoffset, szShadow.cx);
+					j++)
+					*(pLine + j) = 0;
+				for (int j = max(ptAnchorsOri[i - m_size + glowoffset][1] + m_size - glowoffset, ptAnchors[i][0]);
+					j < ptAnchors[i][1];
+					j++)
+					*(pLine + j) = clCenter;
+			}
+		}
+
+		// Delete used resources
+		delete[](ptAnchors - (m_size < 0 ? -m_size : 0) - 1);
+		delete[] ptAnchorsTmp;
+		delete[] ptAnchorsOri;
+		delete[] pKernel;
+		DeleteObject(hParentRgn);
+	}
+
+	void glowwindow::show()
+	{
+		this->status &= shadowenabled;
+		if (status & shadowenabled)
+		{
+			LONG_PTR ParentStyle = ::GetWindowLongPtr(pOwner->m_hWnd, GWL_STYLE);
+			if (WS_VISIBLE & ParentStyle)
+			{
+				status |= shadowvisible;
+				if (!((WS_MAXIMIZE | WS_MINIMIZE) & ParentStyle))	// Parent visible but does not need shadow
+					status |= shadowvisible;
+			}
+		}
+		if (status & shadowvisible)
+		{
+			ShowWindow(thishwnd, SW_SHOWNA);
+			update();
+		}
+		else
+		{
+			ShowWindow(thishwnd, SW_SHOWNA);
+		}
+	}
+
 
 	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
 		:observer(),

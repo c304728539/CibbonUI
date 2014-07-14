@@ -5,6 +5,7 @@
 namespace cibbonui{
 
 #define WINPAR HWND hWnd,UINT Message,WPARAM wParam,LPARAM lParam
+	class glowwindow;
 	class cibboncontrolbase;
 
 	class observer
@@ -38,11 +39,11 @@ namespace cibbonui{
 
 	class cuiwindowbase : public subject
 	{
-
+		friend class glowwindow;
 	public:
 		using winfunc = std::function<bool CALLBACK(WINPAR)>;
 		cuiwindowbase();
-		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle , cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
+		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		virtual ~cuiwindowbase();
 		void run();
 		HWND gethwnd() const
@@ -71,6 +72,7 @@ namespace cibbonui{
 		HWND m_hWnd;
 		
 		cdword windowstyle;
+		cdword extendstyle;
 		cint width;
 		cint height;
 		cstyle realstyle;
@@ -81,7 +83,7 @@ namespace cibbonui{
 	{
 	public:
 		cuistdwindow();
-		cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_POPUP, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
+		cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_POPUP, cdword dwExStyle = 0 , cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
 		~cuistdwindow();
 	protected:
 		void initevents() override;
@@ -92,6 +94,31 @@ namespace cibbonui{
 
 	};
 
+	class glowwindow
+	{
+	public:
+		enum ShadowStatus
+		{
+			shadowenabled = 1,	// Shadow is enabled, if not, the following one is always false
+			shadowvisible = 1 << 1,	// Shadow window is visible
+			parentvisible = 1 << 2,	// Parent window is visible, if not, the above one is always false
+		};
+		glowwindow(cuiwindowbase* _pOwner,cint size = 6);
+		~glowwindow() = default;
+	private:
+		void update();
+		void show();
+		void init();
+		void initevents();
+		void MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent);
+
+		HWND thishwnd;
+		bool ifupdate;
+		cint m_size;
+		cint status;
+		cuiwindowbase* pOwner;
+		LPARAM m_WndSize;
+	};
 
 	class cibboncontrolbase :public observer, public subject
 	{
