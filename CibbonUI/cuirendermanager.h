@@ -3,6 +3,19 @@
 #include "uibase.h"
 
 namespace cibbonui{
+
+	class FactoryManager
+	{
+	public:
+		static const std::unique_ptr<ID2D1Factory, std::function<void(ID2D1Factory*)>>& getpD2DFactory();
+		static const std::unique_ptr<IDWriteFactory, std::function<void(IDWriteFactory*)>>& getpDwFactory();
+
+	private:
+		static std::unique_ptr<ID2D1Factory, std::function<void(ID2D1Factory*)>> pD2DFactory;
+		static std::unique_ptr<IDWriteFactory, std::function<void(IDWriteFactory*)>> pDwFactory;
+	};
+
+	
 	
 	class cuirendermanager
 	{
@@ -11,6 +24,7 @@ namespace cibbonui{
 		static std::shared_ptr<cuirendermanager> getManager(HWND hWnd);
 		~cuirendermanager();
 
+		
 		void clearall(cint color = D2D1::ColorF::White);
 		void resize(cint x, cint y);
 		void begindraw();
@@ -23,23 +37,22 @@ namespace cibbonui{
 
 		cuirendermanager() = default;
 		cuirendermanager(HWND hWnd);
-		static std::shared_ptr<cuirendermanager> pManager;
+		static std::map<HWND ,std::shared_ptr<cuirendermanager>> RenderManagers;
 		HWND m_hWnd;
 		bool ifbegin;
 		CRect windowrect;
 		std::map<int, ID2D1SolidColorBrush*> brushmap;
 		unsigned int beginnum;
-		CRITICAL_SECTION g_cs ;
+		//CRITICAL_SECTION g_cs ;
 		float DPIX;
 		float DPIY;
 
-		ID2D1Factory* pD2DFactory;
+		//ID2D1Factory* pD2DFactory;
 		ID2D1HwndRenderTarget* pRT;
-		ID2D1HwndRenderTarget* falsepRT;
-		IDWriteFactory* pDwFactory;
+		//IDWriteFactory* pDwFactory;
 		
 		
-		void CreateDeviceIndependentResources();
+		//void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
 		ID2D1SolidColorBrush* getBrush(int color);
 		IDWriteTextFormat* getFormat(float fontsize, std::wstring fontname = L"Microsoft YaHei");

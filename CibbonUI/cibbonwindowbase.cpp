@@ -13,52 +13,63 @@ namespace cibbonui
 	*                                                                 *
 	*                                                                 *
 	******************************************************************/
-	shared_ptr<cuirendermanager> cuirendermanager::pManager(nullptr);
 	template<class Interface>
-	inline void Free(Interface **ppInterfaceToRelease)
+	inline void Free(Interface* & ppInterfaceToRelease)
 	{
-		if (*ppInterfaceToRelease != nullptr)
+		if (ppInterfaceToRelease != nullptr)
 		{
-			(*ppInterfaceToRelease)->Release();
-
-			(*ppInterfaceToRelease) = nullptr;
+			ppInterfaceToRelease->Release();
+			ppInterfaceToRelease = nullptr;
 		}
 	}
-	cuirendermanager::cuirendermanager(HWND hWnd) :m_hWnd(hWnd), ifbegin(false), beginnum(0), falsepRT(nullptr)
+
+	unique_ptr<ID2D1Factory, std::function<void(ID2D1Factory*)>> FactoryManager::pD2DFactory(nullptr, [](ID2D1Factory* p)->void{Free(p); });
+	unique_ptr<IDWriteFactory, std::function<void(IDWriteFactory*)>> FactoryManager::pDwFactory(nullptr, [](IDWriteFactory* p)->void{Free(p); });
+	std::map<HWND, std::shared_ptr<cuirendermanager>> cuirendermanager::RenderManagers;
+	cuiwindowbase* cuiTooltip::pOwner(nullptr);
+	unique_ptr<cuiTooltip> cuiTooltip::pTooltip(nullptr);
+	inline const unique_ptr<ID2D1Factory, std::function<void(ID2D1Factory*)>>& FactoryManager::getpD2DFactory()
 	{
-		CreateDeviceIndependentResources();
+		if (!FactoryManager::pD2DFactory)
+		{
+			ID2D1Factory* pFactory = nullptr;
+			HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory);
+			FactoryManager::pD2DFactory.reset(pFactory);
+		}
+		return FactoryManager::pD2DFactory;
+	}
+
+	inline const unique_ptr<IDWriteFactory, std::function<void(IDWriteFactory*)>>& FactoryManager::getpDwFactory()
+	{
+		if (!FactoryManager::pDwFactory)
+		{
+			IDWriteFactory* pDwriteFactory = nullptr;
+			HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
+				__uuidof(pDwriteFactory),
+				reinterpret_cast<IUnknown **>(&pDwriteFactory));
+			FactoryManager::pDwFactory.reset(pDwriteFactory);
+		}
+		return FactoryManager::pDwFactory;
+	}
+
+	cuirendermanager::cuirendermanager(HWND hWnd) :m_hWnd(hWnd), ifbegin(false), beginnum(0), pRT(nullptr)
+	{
 		CreateDeviceResources();
 	}
 
 
 	cuirendermanager::~cuirendermanager()
 	{
-		Free(&pD2DFactory);
-		Free(&pRT);
-		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{Free(&pr.second); });
+		Free(pRT);
+		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{Free(pr.second); });
 		//_CrtDumpMemoryLeaks();
 	}
 
 	std::shared_ptr<cuirendermanager> cuirendermanager::getManager(HWND hWnd)
 	{
-		if (!pManager)
-			pManager.reset(new cuirendermanager(hWnd));
-		return pManager;
-	}
-
-	void cuirendermanager::CreateDeviceIndependentResources()
-	{
-		HRESULT hr = E_FAIL;
-		hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &pD2DFactory);
-		if (FAILED(hr)) std::abort();
-		hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
-			__uuidof(pDwFactory),
-			reinterpret_cast<IUnknown **>(&pDwFactory));
-		if (FAILED(hr)) std::abort();
-		HDC screen = GetDC(0);
-		DPIX = GetDeviceCaps(screen, LOGPIXELSX) / 96.0f;
-		DPIY = GetDeviceCaps(screen, LOGPIXELSY) / 96.0f;
-		ReleaseDC(0, screen);
+		if (RenderManagers.find(hWnd) == RenderManagers.end())
+			RenderManagers[hWnd].reset(new cuirendermanager(hWnd));
+		return RenderManagers[hWnd];
 	}
 
 	void cuirendermanager::CreateDeviceResources()
@@ -67,7 +78,7 @@ namespace cibbonui
 		RECT rect;
 		GetClientRect(m_hWnd, &rect);
 		windowrect = D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
-		hr = pD2DFactory->CreateHwndRenderTarget(
+		hr = FactoryManager::getpD2DFactory()->CreateHwndRenderTarget(
 			RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
 			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
 			D2D1_ALPHA_MODE_PREMULTIPLIED)),
@@ -76,6 +87,10 @@ namespace cibbonui
 			&pRT
 			);
 		if (FAILED(hr)) std::abort();
+		HDC screen = GetDC(0);
+		DPIX = GetDeviceCaps(screen, LOGPIXELSX) / 96.0f;
+		DPIY = GetDeviceCaps(screen, LOGPIXELSY) / 96.0f;
+		ReleaseDC(0, screen);
 
 	}
 
@@ -117,7 +132,7 @@ namespace cibbonui
 	IDWriteTextFormat* cuirendermanager::getFormat(float fontsize, wstring fontname)
 	{
 		IDWriteTextFormat* pFormat = nullptr;
-		HRESULT hr = pDwFactory->CreateTextFormat(
+		HRESULT hr = FactoryManager::getpDwFactory()->CreateTextFormat(
 			fontname.c_str(),
 			nullptr,
 			DWRITE_FONT_WEIGHT_NORMAL,
@@ -301,9 +316,11 @@ namespace cibbonui
 
 	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width, cint _height, cstyle _style)
 		:cuiwindowbase(_hInst, _title, _windowstyle, dwExStyle, _width, _height, _style)
+		, iftrack(true)
 	{
 		initevents();
 		init();
+		cuiTooltip::setpOwner(this);
 	}
 
 	cuistdwindow::cuistdwindow() :cuiwindowbase(){}
@@ -337,7 +354,25 @@ namespace cibbonui
 			return notyet;
 		}
 		);
-		
+		addevents(WM_MOUSEMOVE, [this](WINPAR)->bool{
+			if (iftrack)
+			{
+				TRACKMOUSEEVENT tme;
+				tme.cbSize = sizeof(tme);
+				tme.dwFlags = TME_LEAVE | TME_HOVER;
+				tme.hwndTrack = hWnd;
+				tme.dwHoverTime = Tooltiptime;
+				::_TrackMouseEvent(&tme);
+				iftrack = false;
+			}
+			return notyet;
+		});
+		addevents(WM_MOUSELEAVE, [this](WINPAR)->bool{
+			iftrack = true;
+			return notyet;
+		});
+		addhelper(WM_MOUSEHOVER, mousehover, true);
+		addhelper(WM_MOUSELEAVE, mousemoveout, true);
 		addhelper(WM_MOUSEMOVE, mousemove,true);
 		addevents(WM_LBUTTONDOWN, [this](WINPAR)->bool{
 			if (GET_Y_LPARAM(lParam) < Captionheight && GET_X_LPARAM(lParam) < getPosition().right - 2 * closebuttonwidth)
@@ -811,6 +846,89 @@ namespace cibbonui
 		}
 	}
 
+	cuiTooltip::cuiTooltip() : m_hWnd()
+	{
+		WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
+		wcex.style = CS_HREDRAW | CS_VREDRAW;
+		wcex.lpfnWndProc = cuiTooltip::WndProc;
+		wcex.cbClsExtra = 0;
+		wcex.cbWndExtra = 0;
+		wcex.hInstance = cuiTooltip::pOwner->hInst;
+		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
+		wcex.hbrBackground = 0;
+		wcex.lpszMenuName = NULL;
+		wcex.lpszClassName = L"cuitooltip";
+		RegisterClassEx(&wcex);
+		m_hWnd = CreateWindowEx(
+			0,
+			L"cuitooltip",
+			NULL,
+			WS_POPUPWINDOW,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			cuiTooltip::pOwner->m_hWnd,
+			0,
+			cuiTooltip::pOwner->hInst,
+			NULL
+			);
+		if (!m_hWnd) std::abort();
+		ShowWindow(m_hWnd, SW_HIDE);
+		UpdateWindow(m_hWnd);
+	}
+
+
+	void cuiTooltip::setpOwner(cuiwindowbase* p)
+	{
+		cuiTooltip::pOwner = p;
+	}
+
+	const unique_ptr<cuiTooltip>& cuiTooltip::getTooltip()
+	{
+		if (!pTooltip)
+		{
+			cuiTooltip::pTooltip.reset(new cuiTooltip);
+		}
+		return cuiTooltip::pTooltip;
+	}
+
+	void cuiTooltip::show(CPointf point, wstring text)
+	{
+		RECT rect;
+		GetWindowRect(cuiTooltip::pOwner->m_hWnd, &rect);
+		SetWindowPos(m_hWnd, 0, point.x + rect.left, point.y + rect.top, 70, 30, SWP_NOACTIVATE);
+		
+		ShowWindow(m_hWnd, SW_SHOWNA);
+	}
+
+	void cuiTooltip::hide()
+	{
+		ShowWindow(m_hWnd, SW_HIDE);
+	}
+
+	LRESULT CALLBACK cuiTooltip::WndProc(WINPAR)
+	{
+		switch (Message)
+		{
+		case WM_MOUSEACTIVATE:
+			//::ShowWindow(hWnd, SW_HIDE);
+			return WA_INACTIVE;
+		case WM_SETFOCUS:
+			return 0;
+		case WM_PAINT:
+		{
+			auto x = cuirendermanager::getManager(hWnd);
+			x->begindraw();
+			x->clearall(defaultbackgroundcolor);
+			x->drawtext(L"×îÐ¡»¯", 12, RectF(0, 0, 70, 30));
+			x->enddraw();
+		}
+		default:
+			break;
+		}
+		return ::DefWindowProc(hWnd, Message, wParam, lParam);
+	}
 
 	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
 		:observer(),
@@ -823,6 +941,13 @@ namespace cibbonui
 		ifin(false)
 	{
 		rPosition = { static_cast<LONG>(Position.left), static_cast<LONG>(Position.top), static_cast<LONG>(Position.right), static_cast<LONG>(Position.bottom) };
+		addevents(mousehover, [](cuievent* pe)->void
+		{
+			cuiTooltip::getTooltip()->show(pe->eventposition, L"haha");
+		});
+		addevents(mousemoveout, [](cuievent* pe)->void{
+			cuiTooltip::getTooltip()->hide();
+		});
 	}
 
 	cibboncontrolbase::~cibboncontrolbase()
@@ -858,7 +983,7 @@ namespace cibbonui
 		if (it != EventHandler.end())
 		{
 			for (auto vit : it->second)
-				vit();
+				vit(pceb);
 		}
 	}
 

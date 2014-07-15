@@ -13,13 +13,15 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	//_CrtSetBreakAlloc(268);
 	cuistdwindow MainWindow(hInstance, L"haha");
 	cuibutton<closebuttonPattern> closebutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right-closebuttonwidth, 0, MainWindow.getPosition().right, Captionheight), L"ÍË³ö");
-	closebutton.Onclick([]()->void{//::MessageBox(0, L"haha", L"Demo", 0);
+	closebutton.Onclick([](cuievent* pe)->void{//::MessageBox(0, L"haha", L"Demo", 0);
 	::PostQuitMessage(0);
 	});
 	cuibutton<minimizebuttonPattern> minibutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right - 2 * closebuttonwidth, 0, MainWindow.getPosition().right - closebuttonwidth, Captionheight), L"ÍË³ö");
-	minibutton.Onclick([&]()->void{//::MessageBox(0, L"haha", L"Demo", 0);
+	minibutton.Onclick([&](cuievent* pe)->void{//::MessageBox(0, L"haha", L"Demo", 0);
 	//::PostQuitMessage(0);
-	::CloseWindow(MainWindow.gethwnd());
+		cuiTooltip::setpOwner(&MainWindow);
+		cuiTooltip::getTooltip()->show(pe->eventposition, L"haha");
+	//::CloseWindow(MainWindow.gethwnd());
 	});
 	MainWindow.registerobserver(&closebutton);
 	MainWindow.registerobserver(&minibutton);

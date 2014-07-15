@@ -6,6 +6,7 @@ namespace cibbonui{
 
 #define WINPAR HWND hWnd,UINT Message,WPARAM wParam,LPARAM lParam
 	class glowwindow;
+	class cuiTooltip;
 	class cibboncontrolbase;
 
 	class observer
@@ -40,6 +41,7 @@ namespace cibbonui{
 	class cuiwindowbase : public subject
 	{
 		friend class glowwindow;
+		friend class cuiTooltip;
 	public:
 		using winfunc = std::function<bool CALLBACK(WINPAR)>;
 		cuiwindowbase();
@@ -89,8 +91,7 @@ namespace cibbonui{
 		void initevents() override;
 		void addhelper(UINT Message, cuieventenum cuienum,bool bif);
 	private:
-		int framewidth;
-		float ratio;
+		bool iftrack;
 
 	};
 
@@ -118,6 +119,25 @@ namespace cibbonui{
 		cint status;
 		cuiwindowbase* pOwner;
 		LPARAM m_WndSize;
+	};
+
+	class cuiTooltip
+	{
+	public:
+
+		void show(CPointf point, std::wstring text);
+		void hide();
+		static const std::unique_ptr<cuiTooltip>& getTooltip();
+		static void setpOwner(cuiwindowbase* p);
+
+		~cuiTooltip() = default;
+	private:
+		cuiTooltip();
+
+		HWND m_hWnd;
+		static cuiwindowbase* pOwner;
+		static std::unique_ptr<cuiTooltip> pTooltip;
+		static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	};
 
 	class cibboncontrolbase :public observer, public subject
@@ -155,13 +175,13 @@ namespace cibbonui{
 		CRect Position;
 		RECT rPosition;
 		std::wstring windowtext;
-		std::map <cint, std::vector<std::function<void()>>> EventHandler;
+		std::map <cint, std::vector<std::function<void(cuievent* pe)>>> EventHandler;
 
 	protected:
 		bool ifin;
 		PatternManagerBase* pPatternManager;
 		virtual void initevents() = 0;
-		void addevents(cuieventenum cee, const std::function<void()>& func)
+		void addevents(cuieventenum cee, const std::function<void(cuievent* pe)>& func)
 		{
 			EventHandler[cee].push_back(func);
 		}

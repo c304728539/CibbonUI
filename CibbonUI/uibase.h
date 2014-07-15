@@ -12,7 +12,7 @@ namespace cibbonui
 	const int closebuttonwidth = 34;
 	const int glowoffset = 2;
 	const int shadowsharpness = 5;
-	const int shadowdarkness = 150;
+	const int shadowdarkness = 100;
 
 	const int defaultbackgroundcolor = 0xeeeef2;
 	const int defaultcontentcolor = 0x1e1e1e;
@@ -22,6 +22,9 @@ namespace cibbonui
 	const int defaultclickbackgroundcolor = 0x007acd;
 	const int defaultclickcontentcolor = 0xfffdfd;
 	//using eeeef2181818181818eeedf21c1c1c
+
+	const int Tooltiptime = 300;
+
 	inline cdword PreMultiply(COLORREF cl, unsigned char nAlpha)
 	{
 		// It's strange that the byte order of RGB in 32b BMP is reverse to in COLORREF
@@ -44,6 +47,7 @@ namespace cibbonui
 		mousemove,
 		mousemovein,
 		mousemoveout,
+		mousehover,
 		lbuttondown,
 		lbuttonup,
 		rbuttondown,
@@ -69,7 +73,7 @@ namespace cibbonui
 	struct cuievent
 	{
 		cuieventenum eventname;
-		POINT eventposition;
+		CPointf eventposition;
 		//cuievent(CPointf point)
 		virtual ~cuievent() = default;
 	};
