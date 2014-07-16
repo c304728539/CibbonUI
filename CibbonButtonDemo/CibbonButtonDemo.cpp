@@ -11,17 +11,15 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		_In_ int)
 {
 	//_CrtSetBreakAlloc(268);
-	cuistdwindow MainWindow(hInstance, L"haha");
-	cuibutton<closebuttonPattern> closebutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right-closebuttonwidth, 0, MainWindow.getPosition().right, Captionheight), L"ÍË³ö");
-	closebutton.Onclick([](cuievent* pe)->void{//::MessageBox(0, L"haha", L"Demo", 0);
+	SkinManager::setstyle(daystyle);
+	cuistdwindow MainWindow(hInstance, L"CibbonWindow");
+	cuibutton<SizeBoxPattern> closebutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right-closebuttonwidth, 0, MainWindow.getPosition().right, Captionheight), L"\162");
+	closebutton.Onclick([](cuievent* pe)->void{
 	::PostQuitMessage(0);
 	});
-	cuibutton<minimizebuttonPattern> minibutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right - 2 * closebuttonwidth, 0, MainWindow.getPosition().right - closebuttonwidth, Captionheight), L"ÍË³ö");
-	minibutton.Onclick([&](cuievent* pe)->void{//::MessageBox(0, L"haha", L"Demo", 0);
-	//::PostQuitMessage(0);
-		cuiTooltip::setpOwner(&MainWindow);
-		cuiTooltip::getTooltip()->show(pe->eventposition, L"haha");
-	//::CloseWindow(MainWindow.gethwnd());
+	cuibutton<SizeBoxPattern> minibutton(MainWindow.gethwnd(), D2D1::RectF(MainWindow.getPosition().right - 2 * closebuttonwidth, 0, MainWindow.getPosition().right - closebuttonwidth, Captionheight), L"\60");
+	minibutton.Onclick([&](cuievent* pe)->void{
+	  ::CloseWindow(MainWindow.gethwnd());
 	});
 	MainWindow.registerobserver(&closebutton);
 	MainWindow.registerobserver(&minibutton);

@@ -46,6 +46,7 @@
 #include <initializer_list>
 #include <process.h>
 #include <stdio.h>
+#include <array>
 #include <dwmapi.h>
 #pragma comment(lib,"d2d1.lib")
 #pragma comment(lib,"dwrite.lib")

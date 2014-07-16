@@ -45,7 +45,7 @@ namespace cibbonui{
 	public:
 		using winfunc = std::function<bool CALLBACK(WINPAR)>;
 		cuiwindowbase();
-		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
+		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width = 640, cint _height = 480);
 		virtual ~cuiwindowbase();
 		void run();
 		HWND gethwnd() const
@@ -77,7 +77,6 @@ namespace cibbonui{
 		cdword extendstyle;
 		cint width;
 		cint height;
-		cstyle realstyle;
 
 	};
 
@@ -85,7 +84,7 @@ namespace cibbonui{
 	{
 	public:
 		cuistdwindow();
-		cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_POPUP, cdword dwExStyle = 0 , cint _width = 640, cint _height = 480, cstyle _style = cstyle::daystyle);
+		cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_POPUP, cdword dwExStyle = 0 , cint _width = 640, cint _height = 480);
 		~cuistdwindow();
 	protected:
 		void initevents() override;
@@ -104,14 +103,14 @@ namespace cibbonui{
 			shadowvisible = 1 << 1,	// Shadow window is visible
 			parentvisible = 1 << 2,	// Parent window is visible, if not, the above one is always false
 		};
-		glowwindow(cuiwindowbase* _pOwner,cint size = 6);
+		glowwindow(cuiwindowbase* _pOwner,cint size = 3);
 		~glowwindow() = default;
 	private:
 		void update();
 		void show();
 		void init();
 		void initevents();
-		void MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent);
+		void MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent,cint Color = D2D1:: ColorF::Black);
 
 		HWND thishwnd;
 		bool ifupdate;

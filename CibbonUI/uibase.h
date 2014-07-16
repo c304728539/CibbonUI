@@ -1,3 +1,5 @@
+#pragma once
+
 #include "stdafx.h"
 namespace cibbonui
 {
@@ -8,20 +10,14 @@ namespace cibbonui
 	const bool already = true;
 	const bool notyet = false;
 
+	const int maxstyles = 3;
+	const int maxcolorinstyle = 20;
+
 	const int Captionheight = 26;
 	const int closebuttonwidth = 34;
-	const int glowoffset = 2;
-	const int shadowsharpness = 5;
-	const int shadowdarkness = 100;
-
-	const int defaultbackgroundcolor = 0xeeeef2;
-	const int defaultcontentcolor = 0x1e1e1e;
-	const int defaultdisabledcontentcolor = 0xc3c3c6;
-	const int defaultmoveinbackgroundcolor = 0xfcfcfc;
-	const int defaultmoveincontentcolor = 0x007bcb;
-	const int defaultclickbackgroundcolor = 0x007acd;
-	const int defaultclickcontentcolor = 0xfffdfd;
-	//using eeeef2181818181818eeedf21c1c1c
+	const int glowoffset = 0;
+	const int shadowsharpness = 4;
+	const int shadowdarkness = 230;
 
 	const int Tooltiptime = 300;
 
@@ -32,7 +28,7 @@ namespace cibbonui
 			(GetGValue(cl) * (cdword)nAlpha / 255) << 8 |
 			(GetBValue(cl) * (cdword)nAlpha / 255);
 	}
-	enum cstyle
+	enum cuiStyle
 	{
 		daystyle,
 		nightstyle
@@ -61,15 +57,6 @@ namespace cibbonui
 	const auto Alignmentleft = DWRITE_TEXT_ALIGNMENT_LEADING;
 	const auto Alignmentright = DWRITE_TEXT_ALIGNMENT_TRAILING;
 
-	//struct cuievent
-	//{
-	//	//事件的必要信息
-	//	HWND hWnd;
-	//	cuieventenum Event;
-	//	WPARAM wParam;
-	//	LPARAM lParam;
-	//};
-
 	struct cuievent
 	{
 		cuieventenum eventname;
@@ -79,10 +66,37 @@ namespace cibbonui
 	};
 	struct cuibuttonevent : public cuievent
 	{
-		
-		
+
+
 		//待添加？
 	};
+
+	enum daycolors
+	{
+		defaultbackgroundcolor = 0xeeeef2,
+		defaultcontentcolor = 0x1e1e1e,
+		defaultdisabledcontentcolor = 0xc3c3c6,
+		defaultmoveinbackgroundcolor = 0xfcfcfc,
+		defaultmoveincontentcolor = 0x007bcb,
+		defaultclickbackgroundcolor = 0x007acd,
+		defaultclickcontentcolor = 0xfffdfd,
+		defaulttitlecolor = 0x526fa5,
+		defaultshadowcolor = D2D1::ColorF::Black
+	};
+
+	enum nightcolors
+	{
+		nightbackgroundcolor = defaultcontentcolor,
+		nightcontentcolor = defaultbackgroundcolor,
+		nightdisabledcontentcolor = 0x4e4e50,
+		nightmoveinbackgroundcolor = 0x3f3f41,
+		nightmoveincontentcolor = 0xffffff,
+		nightclickbackgroundcolor = 0x007acc,
+		nightclickcontentcolor = nightmoveincontentcolor,
+		nighttitlecolor = 0x99999b,
+		nightshadowcolor = 0xd07c00
+	};
+
 	enum layoutenum{
 		rightAlignment,//以最右控件对齐,为标题栏三个按钮设计
 		leftAlignmant,
@@ -91,7 +105,40 @@ namespace cibbonui
 		//... so on , in the future...
 	};
 
-	using win32 =  std::tuple<HWND, UINT, WPARAM, LPARAM>;
+	using win32 = std::tuple<HWND, UINT, WPARAM, LPARAM>;
 
 
+
+	enum colorsnum
+	{
+		backgroundcolornum,
+		contentcolornum,
+		disabledcontentcolornum,
+		moveinbackgroundcolornum,
+		moveincontentcolornum,
+		clickbackgroundcolornum,
+		clickcontentcolornum,
+		titlecolornum,
+		shadowcolornum
+	};
+
+	class SkinManager
+	{
+	public:
+		static void setstyle(cuiStyle _style)
+		{
+			SkinManager::style = _style;
+		}
+		static cint getStyleColor(cint _colornum)
+		{
+			return SkinContainer[SkinManager::style][_colornum];
+		}
+		SkinManager() = default;
+	private:
+		static cuiStyle style;
+		static int SkinContainer[maxstyles][maxcolorinstyle];
+	};
+
+	
+	
 }

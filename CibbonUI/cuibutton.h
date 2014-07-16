@@ -31,35 +31,14 @@ namespace cibbonui{
 		addevents(lbuttondown, [this](cuievent* pe)->void{
 			static_cast<ButtonPattern*>(pPatternManager)->drawdown(this);
 		});
-		/*auto Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
-			auto x = static_cast<cuibutton*>(p);
-			static_cast<ButtonPattern*>(x->getPatternManager())->drawup(x);
-			return 0;
-		});*/
 		addevents(lbuttonup, [this](cuievent* pe)->void{
-			static_cast<ButtonPattern*>(pPatternManager)->drawup(this);  });//添加动画
-			//Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
-			//	auto x = static_cast<cuibutton*>(p);
-			//	static_cast<ButtonPattern*>(x->getPatternManager())->drawmove(x);
-			//	return 0;
-			//});
-			//addevents(mousemovein, [this, Func]()->void{
-			//	//cuirendermanager::getManager()->begindraw();
-			//	_beginthreadex(0, 0,
-			//		Func,
-			//		this, 0, 0);  
-			//	//cuirendermanager::getManager()->enddraw(); 
-			//});
-			addevents(mousemovein, [this](cuievent* pe)->void{
-				static_cast<ButtonPattern*>(pPatternManager)->drawmove(this);
-			});
-			/*auto Func = static_cast<unsigned int(__stdcall*)(void*)>([](void* p)-> unsigned int{
-				auto x = static_cast<cuibutton*>(p);
-				static_cast<ButtonPattern*>(x->getPatternManager())->drawusual(x);
-				return 0;
-			});*/
-			addevents(mousemoveout, [this](cuievent* pe)->void{
-				static_cast<ButtonPattern*>(pPatternManager)->drawusual(this); });//添加动画
+			static_cast<ButtonPattern*>(pPatternManager)->drawup(this);  });
+		addevents(mousemovein, [this](cuievent* pe)->void{
+			static_cast<ButtonPattern*>(pPatternManager)->drawmove(this);
+		});
+		addevents(mousemoveout, [this](cuievent* pe)->void{
+			static_cast<ButtonPattern*>(pPatternManager)->drawusual(this);
+		});//添加动画
 	}
 	template<typename T>
 	void cuibutton<T>::Onclick(const std::function<void(cuievent* pe)>& func)
@@ -79,21 +58,27 @@ namespace cibbonui{
 		virtual void drawdown(cibboncontrolbase* pControl);
 		virtual void drawup(cibboncontrolbase* pControl);
 		virtual void initdraw(cibboncontrolbase* pControl) override;
+		
 		virtual ~ButtonPattern() = default;
+	protected:
+		virtual void drawhelper(cibboncontrolbase* pControl, cint Color);
 	};
 
-	class closebuttonPattern :public ButtonPattern
+	class SizeBoxPattern :public ButtonPattern
+	{
+	public:
+		SizeBoxPattern(HWND hWnd);
+	protected:
+		virtual void drawhelper(cibboncontrolbase* pControl, cint Color);
+	};
+
+
+	/*class closebuttonPattern :public ButtonPattern
 	{
 	public:
 		closebuttonPattern(HWND hWnd);
-		virtual void drawusual(cibboncontrolbase* pControl) override;
-		virtual void drawfocus(cibboncontrolbase* pControl) override;
-		virtual void drawmove(cibboncontrolbase* pControl) override;
-		virtual void drawdown(cibboncontrolbase* pControl);
-		virtual void drawup(cibboncontrolbase* pControl);
-		virtual void initdraw(cibboncontrolbase* pControl) override;
 		virtual ~closebuttonPattern() = default;
-	private:
+	protected
 		void drawhelper(cibboncontrolbase* pControl, cint Color);
 	};
 	class minimizebuttonPattern :public ButtonPattern
@@ -110,6 +95,6 @@ namespace cibbonui{
 	private:
 		void drawhelper(cibboncontrolbase* pControl, cint Color);
 	};
-
+*/
 
 }

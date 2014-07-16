@@ -32,7 +32,7 @@ namespace cibbonui{
 		void drawrect(const CRect& rect,float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth = 1.0f, int color = D2D1::ColorF::Black);
 		void FillRect(const D2D1_RECT_F& rect, int color = D2D1::ColorF::White);
-		void drawtext(std::wstring text, float fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
+		void drawtext(std::wstring text, float fontsize, const CRect& _rect, std::wstring fontname = L"Microsoft YaHei",  DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
 	private:
 
 		cuirendermanager() = default;
@@ -72,7 +72,7 @@ namespace cibbonui{
 		
 		std::shared_ptr<cuirendermanager> pRendermanager;
 	protected:
-		void drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color = D2D1::ColorF::Black);
+		void drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color = D2D1::ColorF::Black,std::wstring fontname = L"Microsoft YaHei");
 	
 	};
 

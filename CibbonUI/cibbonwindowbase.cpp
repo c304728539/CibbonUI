@@ -5,6 +5,37 @@ using namespace std;
 using namespace D2D1;
 namespace cibbonui
 {
+	cuiStyle SkinManager::style = daystyle;
+	int SkinManager::SkinContainer[maxstyles][maxcolorinstyle] = {
+
+		//daystylecolors
+		{
+		defaultbackgroundcolor,
+		defaultcontentcolor,
+		defaultdisabledcontentcolor,
+		defaultmoveinbackgroundcolor,
+		defaultmoveincontentcolor,
+		defaultclickbackgroundcolor,
+		defaultclickcontentcolor,
+		defaulttitlecolor,
+		defaultshadowcolor
+		}
+		,
+		//nightstylecolors
+		{
+		nightbackgroundcolor,
+		nightcontentcolor,
+		nightdisabledcontentcolor,
+		nightmoveinbackgroundcolor,
+		nightmoveincontentcolor,
+		nightclickbackgroundcolor,
+		nightclickcontentcolor,
+		nighttitlecolor,
+		nightshadowcolor
+
+		}
+	};
+
 	/******************************************************************
 	*                                                                 *
 	*                                                                 *
@@ -161,9 +192,9 @@ namespace cibbonui
 		return pRT->FillRectangle(rect, getBrush(color));
 	}
 
-	void cuirendermanager::drawtext(wstring text, float fontsize, const CRect& _rect, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
+	void cuirendermanager::drawtext(wstring text, float fontsize, const CRect& _rect, wstring fontname, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
-		auto pFormat = getFormat(fontsize, L"Microsoft YaHei");
+		auto pFormat = getFormat(fontsize, fontname);
 		pFormat->SetTextAlignment(Alig);
 		pFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 		pRT->DrawTextW(
@@ -182,9 +213,9 @@ namespace cibbonui
 	{
 
 	}
-	 void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
+	 void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color ,wstring fontname)
 	{
-		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),2* sqrt(pControl->getPosition().bottom - pControl->getPosition().top), pControl->getPosition(), Alig, Color);
+		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),3* sqrt(pControl->getPosition().bottom - pControl->getPosition().top), pControl->getPosition(),fontname, Alig, Color);
 	}
 
 	
@@ -207,14 +238,13 @@ namespace cibbonui
 		
 	}
 
-	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle , cint _width, cint _height, cstyle _style)
+	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle , cint _width, cint _height)
 		:
 		hInst(_hInst),
 		title(_title),
 		windowstyle(_windowstyle),
 		width(_width),
 		height(_height),
-		realstyle(_style),
 		windowmessage(),
 		subject(),
 		extendstyle(dwExStyle)
@@ -314,8 +344,8 @@ namespace cibbonui
 		windowmessage[Message].push_back(Func);
 	}
 
-	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width, cint _height, cstyle _style)
-		:cuiwindowbase(_hInst, _title, _windowstyle, dwExStyle, _width, _height, _style)
+	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width, cint _height)
+		:cuiwindowbase(_hInst, _title, _windowstyle, dwExStyle, _width, _height)
 		, iftrack(true)
 	{
 		initevents();
@@ -339,8 +369,8 @@ namespace cibbonui
 			auto hdc = BeginPaint(hWnd, &ps);
 			auto x = cuirendermanager::getManager(hWnd);
 			x->begindraw();
-			x->clearall(defaultbackgroundcolor);
-			x->drawtext(title, 3 * sqrt( Captionheight), RectF(20, 5, getPosition().right, Captionheight),Alignmentleft);
+			x->clearall(SkinManager::getStyleColor(backgroundcolornum));
+			x->drawtext(title, 3 * sqrt(Captionheight), RectF(20, 5, getPosition().right, Captionheight), L"Segoe WP Semilight", Alignmentleft, SkinManager::getStyleColor(titlecolornum));
 			x->enddraw();
 			cuievent bevent;
 			bevent.eventname = cuieventenum::controlinit;
@@ -583,7 +613,8 @@ namespace cibbonui
 		HBITMAP hbitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&pvBits, NULL, 0);
 
 		ZeroMemory(pvBits, bmi.bmiHeader.biSizeImage);
-		MakeShadow((UINT32 *)pvBits, pOwner->m_hWnd, &WndRect);
+		auto x = SkinManager::getStyleColor(shadowcolornum);
+		MakeShadow((UINT32 *)pvBits, pOwner->m_hWnd, &WndRect, SkinManager::getStyleColor(shadowcolornum));
 
 		HDC hMemDC = CreateCompatibleDC(NULL);
 		HBITMAP hOriBmp = (HBITMAP)SelectObject(hMemDC, hbitmap);
@@ -605,7 +636,7 @@ namespace cibbonui
 		DeleteObject(hbitmap);
 		DeleteDC(hMemDC);
 	}
-	void glowwindow::MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent)
+	void glowwindow::MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent, cint Color)
 	{
 		// The shadow algorithm:
 		// Get the region of parent window,
@@ -720,11 +751,11 @@ namespace cibbonui
 			{
 				double dLength = sqrt((i - nKernelSize) * (i - nKernelSize) + (j - nKernelSize) * (double)(j - nKernelSize));
 				if (dLength < nCenterSize)
-					*pKernelIter = shadowdarkness << 24 | PreMultiply(ColorF::Black, shadowdarkness);
+					*pKernelIter = shadowdarkness << 24 | PreMultiply(Color, shadowdarkness);
 				else if (dLength <= nKernelSize)
 				{
 					UINT32 nFactor = ((UINT32)((1 - (dLength - nCenterSize) / (shadowsharpness + 1)) * shadowdarkness));
-					*pKernelIter = nFactor << 24 | PreMultiply(ColorF::Black, nFactor);
+					*pKernelIter = nFactor << 24 | PreMultiply(Color, nFactor);
 				}
 				else
 					*pKernelIter = 0;
@@ -784,7 +815,7 @@ namespace cibbonui
 		}	// for() Generate blurred border
 
 		// Erase unwanted parts and complement missing
-		UINT32 clCenter = shadowdarkness << 24 | PreMultiply(ColorF::Black, shadowdarkness);
+		UINT32 clCenter = shadowdarkness << 24 | PreMultiply(Color, shadowdarkness);
 		for (int i = min(nKernelSize, max(m_size - glowoffset, 0));
 			i < max(szShadow.cy - nKernelSize, min(szParent.cy + m_size - glowoffset, szParent.cy + 2 * m_size));
 			i++)
