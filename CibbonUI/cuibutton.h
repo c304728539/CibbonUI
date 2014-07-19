@@ -7,7 +7,7 @@ namespace cibbonui{
 	class cuibutton : public cibboncontrolbase//这是一个简单的button
 	{
 	public:
-		cuibutton(HWND hWnd, const CRect& _Position, const std::wstring& _text, bool Enable = true);
+		cuibutton(HWND hWnd, const cuirect& _Position, const std::wstring& _text, bool Enable = true);
 		~cuibutton() = default;
 		void Onclick(const std::function<void(cuievent* pe)>& func);
 	private:
@@ -16,7 +16,7 @@ namespace cibbonui{
 	};
 
 	template<typename T>
-	cuibutton<T>::cuibutton(HWND hWnd, const CRect& _Position, const std::wstring& _text, bool Enable)
+	cuibutton<T>::cuibutton(HWND hWnd, const cuirect& _Position, const std::wstring& _text, bool Enable)
 		:cibboncontrolbase(new T(hWnd), _Position, _text, Enable)
 	{
 		initevents();

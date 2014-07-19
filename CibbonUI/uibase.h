@@ -13,9 +13,10 @@ namespace cibbonui
 	const int maxstyles = 3;
 	const int maxcolorinstyle = 20;
 
-	const int Captionheight = 26;
-	const int closebuttonwidth = 34;
+	const float Captionheight = 26.f;
+	const float closebuttonwidth = 34.f;
 	const int glowoffset = 0;
+	const int glowsize = 3;
 	const int shadowsharpness = 4;
 	const int shadowdarkness = 230;
 
@@ -139,6 +140,7 @@ namespace cibbonui
 		static int SkinContainer[maxstyles][maxcolorinstyle];
 	};
 
+	 
 	
 	
 }

@@ -58,7 +58,7 @@ namespace cibbonui
 	unique_ptr<IDWriteFactory, std::function<void(IDWriteFactory*)>> FactoryManager::pDwFactory(nullptr, [](IDWriteFactory* p)->void{Free(p); });
 	std::map<HWND, std::shared_ptr<cuirendermanager>> cuirendermanager::RenderManagers;
 	cuiwindowbase* cuiTooltip::pOwner(nullptr);
-	unique_ptr<cuiTooltip> cuiTooltip::pTooltip(nullptr);
+	
 	inline const unique_ptr<ID2D1Factory, std::function<void(ID2D1Factory*)>>& FactoryManager::getpD2DFactory()
 	{
 		if (!FactoryManager::pD2DFactory)
@@ -93,7 +93,6 @@ namespace cibbonui
 	{
 		Free(pRT);
 		for_each(brushmap.begin(), brushmap.end(), [](pair<int, ID2D1SolidColorBrush*> pr)->void{Free(pr.second); });
-		//_CrtDumpMemoryLeaks();
 	}
 
 	std::shared_ptr<cuirendermanager> cuirendermanager::getManager(HWND hWnd)
@@ -108,7 +107,7 @@ namespace cibbonui
 		HRESULT hr;
 		RECT rect;
 		GetClientRect(m_hWnd, &rect);
-		windowrect = D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
+		windowrect = cuirect(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
 		hr = FactoryManager::getpD2DFactory()->CreateHwndRenderTarget(
 			RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
 			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -159,6 +158,36 @@ namespace cibbonui
 		brushmap[color] = pBrush;
 		return pBrush;
 	}
+	ID2D1LinearGradientBrush* cuirendermanager::getBrush(cint color1, cint color2 , cuirect _rect)
+	{
+		ID2D1LinearGradientBrush* pBrush = nullptr;
+		ID2D1GradientStopCollection* pStop = nullptr;
+	    D2D1_GRADIENT_STOP Stop[] = {
+			{ 0.f, ColorF(color1) },
+			{ 1.f, ColorF(color2) }
+		};
+		HRESULT hr = pRT->CreateGradientStopCollection(Stop,
+			ARRAYSIZE(Stop),
+			D2D1_GAMMA_2_2,
+			D2D1_EXTEND_MODE_CLAMP,
+			&pStop);
+		if (FAILED(hr)) std::abort();
+		hr = pRT->CreateLinearGradientBrush(LinearGradientBrushProperties(
+			Point2F(_rect.left + (_rect.right - _rect.left) / 2, _rect.top), 
+			Point2F(_rect.left + (_rect.right - _rect.left) / 2, _rect.bottom)), 
+			pStop, &pBrush);
+		if (FAILED(hr)) std::abort();
+		pStop->Release();
+		return pBrush;
+	}
+
+	void cuirendermanager::FillRect(const cuirect& rect, cint color1, cint color2)
+	{
+		auto p = getBrush(color1, color2, rect);
+		pRT->FillRectangle(rect,p);
+		p->Release();
+	}
+
 
 	IDWriteTextFormat* cuirendermanager::getFormat(float fontsize, wstring fontname)
 	{
@@ -177,7 +206,7 @@ namespace cibbonui
 	}
 
 
-	inline void cuirendermanager::drawrect(const CRect& rect, float linewidth, cint color)
+	inline void cuirendermanager::drawrect(const cuirect& rect, float linewidth, cint color)
 	{
 		return pRT->DrawRectangle(rect, getBrush(color), linewidth);
 	}
@@ -187,24 +216,26 @@ namespace cibbonui
 		return pRT->DrawLine(ltop, rbottom, getBrush(color), linewidth);
 	}
 
-	void cuirendermanager::FillRect(const D2D1_RECT_F& rect, cint color)
+	void cuirendermanager::FillRect(const cuirect& rect, cint color)
 	{
 		return pRT->FillRectangle(rect, getBrush(color));
 	}
 
-	void cuirendermanager::drawtext(wstring text, float fontsize, const CRect& _rect, wstring fontname, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
+	void cuirendermanager::drawtext(wstring text, float fontsize, const cuirect& _rect, wstring fontname, DWRITE_TEXT_ALIGNMENT Alig, cint Color)
 	{
 		auto pFormat = getFormat(fontsize, fontname);
 		pFormat->SetTextAlignment(Alig);
 		pFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-		pRT->DrawTextW(
-			text.c_str(),
+		IDWriteTextLayout* pLayout = nullptr;
+		FactoryManager::getpDwFactory()->CreateTextLayout(text.c_str(),
 			text.size(),
 			pFormat,
-			_rect,
-			getBrush(Color)
-			);
+			_rect.right - _rect.left,
+			_rect.bottom - _rect.top,
+			&pLayout);
+		pRT->DrawTextLayout(Point2F(_rect.left, _rect.top), pLayout, getBrush(Color));
 		pFormat->Release();
+		pLayout->Release();
 	}
 
 
@@ -215,7 +246,7 @@ namespace cibbonui
 	}
 	 void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color ,wstring fontname)
 	{
-		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),3* sqrt(pControl->getPosition().bottom - pControl->getPosition().top), pControl->getPosition(),fontname, Alig, Color);
+		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),(pControl->getPosition().bottom - pControl->getPosition().top)/2.0f, pControl->getPosition(),fontname, Alig, Color);
 	}
 
 	
@@ -230,45 +261,24 @@ namespace cibbonui
 	******************************************************************/
 
 
-	cuiwindowbase::cuiwindowbase()
-	{
-	}
-	cuiwindowbase::~cuiwindowbase()
-	{
-		
-	}
+	
 
-	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle , cint _width, cint _height)
+	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width, cint _height, cdword dwExStyle, wstring classname, HWND Parent)
 		:
 		hInst(_hInst),
 		title(_title),
 		windowstyle(_windowstyle),
 		width(_width),
 		height(_height),
-		windowmessage(),
 		subject(),
-		extendstyle(dwExStyle)
+		extendstyle(dwExStyle),
+		windowclassname(classname),
+		ParenthWnd(Parent)
 	{
-
-	}
-
-	void cuiwindowbase::run()
-	{
-		ShowWindow(m_hWnd, SW_SHOWNORMAL);
-		UpdateWindow(m_hWnd);
-		runmessageloop();
+		init();
 	}
 
 
-	inline void cuiwindowbase::runmessageloop()
-	{
-		MSG msg{ 0 };
-		while (::GetMessage(&msg, NULL, 0, 0))
-		{
-			::TranslateMessage(&msg);
-			::DispatchMessage(&msg);
-		}
-	}
 
 	void cuiwindowbase::init()
 	{
@@ -281,24 +291,25 @@ namespace cibbonui
 		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wcex.hbrBackground = 0;
 		wcex.lpszMenuName = NULL;
-		wcex.lpszClassName = L"cuiwindow";
+		wcex.lpszClassName = windowclassname.c_str();
 		RegisterClassEx(&wcex);
-		m_hWnd = CreateWindow(
-			L"cuiwindow",
+		m_hWnd = CreateWindowEx(
+			extendstyle,
+			windowclassname.c_str(),
 			title.c_str(),
 			windowstyle,
 			CW_USEDEFAULT,
 			CW_USEDEFAULT,
 			width,
 			height,
-			0,
+			ParenthWnd,
 			0,
 			hInst,
 			this
 			);
 		if (!m_hWnd) std::abort();
-		
-		
+
+
 	}
 
 	LRESULT CALLBACK cuiwindowbase::WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -339,20 +350,36 @@ namespace cibbonui
 	}
 
 
-	inline void cuiwindowbase::addevents(UINT Message, winfunc Func)
+	void cuiwindowbase::addevents(UINT Message, winfunc Func)
 	{
 		windowmessage[Message].push_back(Func);
 	}
 
+
 	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width, cint _height)
-		:cuiwindowbase(_hInst, _title, _windowstyle, dwExStyle, _width, _height)
+		:cuiwindowbase(_hInst, _title, _windowstyle, _width, _height, dwExStyle)
 		, iftrack(true)
 	{
 		initevents();
-		init();
 		cuiTooltip::setpOwner(this);
 	}
+	void cuistdwindow::run()
+	{
+		ShowWindow(m_hWnd, SW_SHOWNORMAL);
+		UpdateWindow(m_hWnd);
+		runmessageloop();
+	}
 
+
+	void cuistdwindow::runmessageloop()
+	{
+		MSG msg{ 0 };
+		while (::GetMessage(&msg, NULL, 0, 0))
+		{
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
+		}
+	}
 	cuistdwindow::cuistdwindow() :cuiwindowbase(){}
 	cuistdwindow::~cuistdwindow(){}
 
@@ -370,7 +397,7 @@ namespace cibbonui
 			auto x = cuirendermanager::getManager(hWnd);
 			x->begindraw();
 			x->clearall(SkinManager::getStyleColor(backgroundcolornum));
-			x->drawtext(title, 3 * sqrt(Captionheight), RectF(20, 5, getPosition().right, Captionheight), L"Segoe WP Semilight", Alignmentleft, SkinManager::getStyleColor(titlecolornum));
+			x->drawtext(title, 3 * sqrt(Captionheight), cuirect(20.f, 5.f, getclientPosition().right, Captionheight), L"Segoe WP Semilight", Alignmentleft, SkinManager::getStyleColor(titlecolornum));
 			x->enddraw();
 			cuievent bevent;
 			bevent.eventname = cuieventenum::controlinit;
@@ -378,9 +405,9 @@ namespace cibbonui
 			EndPaint(hWnd, &ps);
 			return notyet;
 		});
-		addevents(WM_SIZE, [](WINPAR)->LRESULT
+		addevents(WM_SIZE, [](WINPAR)->bool
 		{
-			cuirendermanager::getManager(hWnd)->resize( LOWORD(lParam), HIWORD(lParam));
+			cuirendermanager::getManager(hWnd)->resize(LOWORD(lParam), HIWORD(lParam));
 			return notyet;
 		}
 		);
@@ -403,9 +430,9 @@ namespace cibbonui
 		});
 		addhelper(WM_MOUSEHOVER, mousehover, true);
 		addhelper(WM_MOUSELEAVE, mousemoveout, true);
-		addhelper(WM_MOUSEMOVE, mousemove,true);
+		addhelper(WM_MOUSEMOVE, mousemove, true);
 		addevents(WM_LBUTTONDOWN, [this](WINPAR)->bool{
-			if (GET_Y_LPARAM(lParam) < Captionheight && GET_X_LPARAM(lParam) < getPosition().right - 2 * closebuttonwidth)
+			if (GET_Y_LPARAM(lParam) < Captionheight && GET_X_LPARAM(lParam) < getclientPosition().right - 2 * closebuttonwidth)
 			{
 				::SendMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 				return already;
@@ -414,29 +441,29 @@ namespace cibbonui
 				SetCapture(hWnd);/**/
 			return notyet;
 		});
-		addhelper(WM_LBUTTONDOWN, lbuttondown,true);
-		
+		addhelper(WM_LBUTTONDOWN, lbuttondown, true);
+
 		addevents(WM_LBUTTONUP, [=](WINPAR)->bool{
 			ReleaseCapture();
 			cuievent bevent;
-			bevent.eventposition = { GET_X_LPARAM(lParam)  , GET_Y_LPARAM(lParam) };
+			bevent.eventposition = { static_cast<float>(GET_X_LPARAM(lParam)), static_cast<float>( GET_Y_LPARAM(lParam)) };
 			bevent.eventname = lbuttonup;
 			notifyobservers(&bevent);
 			return already;
 		});
-		addhelper(WM_RBUTTONDOWN, rbuttondown,false);
-		addhelper(WM_RBUTTONUP, rbuttonup,true);
-		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick,true);
+		addhelper(WM_RBUTTONDOWN, rbuttondown, false);
+		addhelper(WM_RBUTTONUP, rbuttonup, true);
+		addhelper(WM_LBUTTONDBLCLK, lbuttondoubleclick, true);
 		//addhelper(WM_PAINT, controlinit,false);
-		
-		
+
+
 	}
 
-	inline void cuistdwindow::addhelper(UINT Message, cuieventenum cuienum,bool bif)
+	void cuistdwindow::addhelper(UINT Message, cuieventenum cuienum, bool bif)
 	{
 		addevents(Message, [=](WINPAR)->bool{
 			cuievent bevent;
-			bevent.eventposition = { GET_X_LPARAM(lParam) , GET_Y_LPARAM(lParam) };
+			bevent.eventposition = { static_cast<float>(GET_X_LPARAM(lParam)), static_cast<float>( GET_Y_LPARAM(lParam) )};
 			bevent.eventname = cuienum;
 			notifyobservers(&bevent);
 			return notyet;
@@ -444,40 +471,11 @@ namespace cibbonui
 	}
 
 	glowwindow::glowwindow(cuiwindowbase* _pOwner, cint size)
-		:pOwner(_pOwner), m_size(size), ifupdate(false), status(shadowenabled), m_WndSize(0)
-	{
-		init();
-		initevents();
-	}
+		:cuiwindowbase(_pOwner->gethInst(), L"glowwindow", 640, 480, WS_POPUPWINDOW, WS_EX_LAYERED | WS_EX_TRANSPARENT, L"cuiglowwindow", _pOwner->gethwnd()), ifupdate(false), status(shadowenabled), m_size(3),
+		pOwner(_pOwner)
 
-	void glowwindow::init()
 	{
-		WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
-		wcex.style = CS_HREDRAW | CS_VREDRAW;
-		wcex.lpfnWndProc = DefWindowProc;
-		wcex.cbClsExtra = 0;
-		wcex.cbWndExtra = 0;
-		wcex.hInstance = pOwner->hInst;
-		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-		wcex.hbrBackground = 0;
-		wcex.lpszMenuName = NULL;
-		wcex.lpszClassName = L"cuiglowwindow";
-		RegisterClassEx(&wcex);
-		thishwnd = CreateWindowEx(
-			WS_EX_LAYERED | WS_EX_TRANSPARENT,
-			L"cuiglowwindow",
-			NULL,
-			WS_POPUPWINDOW,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT, 
-			pOwner->m_hWnd,
-			0,
-			pOwner->hInst,
-			NULL
-			);
-		if (!thishwnd) std::abort();
+		initevents();
 	}
 
 	void glowwindow::initevents()
@@ -487,27 +485,27 @@ namespace cibbonui
 			if (status & shadowvisible)
 			{
 				RECT x;
-				GetWindowRect(pOwner->m_hWnd, &x);
-				::SetWindowPos(this->thishwnd, 0, x.left + glowoffset - m_size
+				GetWindowRect(pOwner->gethwnd(), &x);
+				::SetWindowPos(this->m_hWnd, 0, x.left + glowoffset - m_size
 					, x.top + glowoffset - m_size, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
 			}
 			return notyet;
-			
+
 		});
 
 
 		pOwner->addevents(WM_SIZE, [this](WINPAR)->bool
 		{
-			if ( status & shadowenabled)
+			if (status & shadowenabled)
 			{
 				if (SIZE_MAXIMIZED == wParam || SIZE_MINIMIZED == wParam)
 				{
-					ShowWindow(thishwnd, SW_HIDE);
+					ShowWindow(m_hWnd, SW_HIDE);
 					status &= ~shadowvisible;
 				}
 				else
 				{
-					LONG_PTR Parentstyle = ::GetWindowLongPtr(pOwner->m_hWnd, GWL_STYLE);
+					LONG_PTR Parentstyle = ::GetWindowLongPtr(pOwner->gethwnd(), GWL_STYLE);
 					if (Parentstyle & WS_VISIBLE)
 					{
 						status |= parentvisible;
@@ -515,7 +513,7 @@ namespace cibbonui
 						{
 							status |= shadowvisible;
 							this->update();
-							ShowWindow(thishwnd, SW_SHOWNA);
+							ShowWindow(m_hWnd, SW_SHOWNA);
 							this->ifupdate = true;
 						}
 						else if (LOWORD(lParam) > LOWORD(this->m_WndSize) || HIWORD(lParam) > HIWORD(this->m_WndSize))
@@ -556,7 +554,7 @@ namespace cibbonui
 				auto x = ::DefWindowProc(hWnd, Message, wParam, lParam);
 				if (!wParam)
 				{
-					::ShowWindow(this->thishwnd, SW_HIDE);
+					::ShowWindow(this->m_hWnd, SW_HIDE);
 					this->status &= ~(shadowvisible | parentvisible);
 				}
 				else
@@ -570,14 +568,14 @@ namespace cibbonui
 		});
 
 		pOwner->addevents(WM_DESTROY, [this](WINPAR)->bool{
-			DestroyWindow(this->thishwnd);
+			DestroyWindow(this->m_hWnd);
 			return notyet;
 		});
 
 		pOwner->addevents(WM_PAINT, [this](WINPAR)->bool
 		{
 			this->show();
-			LONG_PTR Parentstyle = ::GetWindowLongPtr(pOwner->m_hWnd, GWL_STYLE);
+			LONG_PTR Parentstyle = ::GetWindowLongPtr(pOwner->gethwnd(), GWL_STYLE);
 			if (Parentstyle & WS_VISIBLE)
 			{
 				status |= parentvisible;
@@ -593,7 +591,7 @@ namespace cibbonui
 	void glowwindow::update()
 	{
 		RECT WndRect;
-		GetWindowRect(pOwner->m_hWnd, &WndRect);
+		GetWindowRect(pOwner->gethwnd(), &WndRect);
 		int nShadWndWid = WndRect.right - WndRect.left + m_size * 2;
 		int nShadWndHei = WndRect.bottom - WndRect.top + m_size * 2;
 
@@ -614,7 +612,7 @@ namespace cibbonui
 
 		ZeroMemory(pvBits, bmi.bmiHeader.biSizeImage);
 		auto x = SkinManager::getStyleColor(shadowcolornum);
-		MakeShadow((UINT32 *)pvBits, pOwner->m_hWnd, &WndRect, SkinManager::getStyleColor(shadowcolornum));
+		MakeShadow((UINT32 *)pvBits, pOwner->gethwnd(), &WndRect, SkinManager::getStyleColor(shadowcolornum));
 
 		HDC hMemDC = CreateCompatibleDC(NULL);
 		HBITMAP hOriBmp = (HBITMAP)SelectObject(hMemDC, hbitmap);
@@ -624,9 +622,9 @@ namespace cibbonui
 		SIZE WndSize = { nShadWndWid, nShadWndHei };
 		BLENDFUNCTION blendPixelFunction = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
 
-		MoveWindow(thishwnd, ptDst.x, ptDst.y, nShadWndWid, nShadWndHei, FALSE);
+		MoveWindow(m_hWnd, ptDst.x, ptDst.y, nShadWndWid, nShadWndHei, FALSE);
 
-		BOOL bRet = UpdateLayeredWindow(thishwnd, NULL, &ptDst, &WndSize, hMemDC,
+		BOOL bRet = UpdateLayeredWindow(m_hWnd, NULL, &ptDst, &WndSize, hMemDC,
 			&ptSrc, 0, &blendPixelFunction, ULW_ALPHA);
 
 		_ASSERT(bRet); // something was wrong....
@@ -858,7 +856,7 @@ namespace cibbonui
 		this->status &= shadowenabled;
 		if (status & shadowenabled)
 		{
-			LONG_PTR ParentStyle = ::GetWindowLongPtr(pOwner->m_hWnd, GWL_STYLE);
+			LONG_PTR ParentStyle = ::GetWindowLongPtr(pOwner->gethwnd(), GWL_STYLE);
 			if (WS_VISIBLE & ParentStyle)
 			{
 				status |= shadowvisible;
@@ -868,100 +866,46 @@ namespace cibbonui
 		}
 		if (status & shadowvisible)
 		{
-			ShowWindow(thishwnd, SW_SHOWNA);
+			ShowWindow(m_hWnd, SW_SHOWNA);
 			update();
 		}
 		else
 		{
-			ShowWindow(thishwnd, SW_SHOWNA);
+			ShowWindow(m_hWnd, SW_SHOWNA);
 		}
 	}
 
-	cuiTooltip::cuiTooltip() : m_hWnd()
+	cuiTooltip::cuiTooltip(RECT _rect,const wstring& text) 
 	{
-		WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
-		wcex.style = CS_HREDRAW | CS_VREDRAW;
-		wcex.lpfnWndProc = cuiTooltip::WndProc;
-		wcex.cbClsExtra = 0;
-		wcex.cbWndExtra = 0;
-		wcex.hInstance = cuiTooltip::pOwner->hInst;
-		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-		wcex.hbrBackground = 0;
-		wcex.lpszMenuName = NULL;
-		wcex.lpszClassName = L"cuitooltip";
-		RegisterClassEx(&wcex);
-		m_hWnd = CreateWindowEx(
-			0,
-			L"cuitooltip",
-			NULL,
-			WS_POPUPWINDOW,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			cuiTooltip::pOwner->m_hWnd,
-			0,
-			cuiTooltip::pOwner->hInst,
-			NULL
-			);
-		if (!m_hWnd) std::abort();
-		ShowWindow(m_hWnd, SW_HIDE);
-		UpdateWindow(m_hWnd);
+		HWND hwndTT = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, NULL,
+			WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+			cuiTooltip::pOwner->gethwnd(), NULL, cuiTooltip::pOwner->gethInst(), NULL);
+		SetWindowPos(hwndTT, HWND_TOPMOST, 0, 0, 0, 0,
+			SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+		// Set up "tool" information. In this case, the "tool" is the entire parent window.
+		TOOLINFO ti = { 0 };
+		ti.cbSize = sizeof(TOOLINFO);
+		ti.uFlags = TTF_SUBCLASS;
+		ti.hwnd = cuiTooltip::pOwner->gethwnd();
+		ti.hinst = cuiTooltip::pOwner->gethInst();
+		ti.lpszText = const_cast<LPWSTR>(text.c_str());
+		ti.rect = _rect;
+
+		// Associate the tooltip with the "tool" window.
+		SendMessage(hwndTT, TTM_ADDTOOL, 0, (LPARAM)(LPTOOLINFO)&ti);
+
 	}
+	
 
 
-	void cuiTooltip::setpOwner(cuiwindowbase* p)
+	template<typename P,typename R>
+	inline bool ifinrect(P Point, R Rect)
 	{
-		cuiTooltip::pOwner = p;
+		return Point.x > Rect.left && Point.x < Rect.right && Point.y > Rect.top && Point.y < Rect.bottom;
 	}
-
-	const unique_ptr<cuiTooltip>& cuiTooltip::getTooltip()
-	{
-		if (!pTooltip)
-		{
-			cuiTooltip::pTooltip.reset(new cuiTooltip);
-		}
-		return cuiTooltip::pTooltip;
-	}
-
-	void cuiTooltip::show(CPointf point, wstring text)
-	{
-		RECT rect;
-		GetWindowRect(cuiTooltip::pOwner->m_hWnd, &rect);
-		SetWindowPos(m_hWnd, 0, point.x + rect.left, point.y + rect.top, 70, 30, SWP_NOACTIVATE);
-		
-		ShowWindow(m_hWnd, SW_SHOWNA);
-	}
-
-	void cuiTooltip::hide()
-	{
-		ShowWindow(m_hWnd, SW_HIDE);
-	}
-
-	LRESULT CALLBACK cuiTooltip::WndProc(WINPAR)
-	{
-		switch (Message)
-		{
-		case WM_MOUSEACTIVATE:
-			//::ShowWindow(hWnd, SW_HIDE);
-			return WA_INACTIVE;
-		case WM_SETFOCUS:
-			return 0;
-		case WM_PAINT:
-		{
-			auto x = cuirendermanager::getManager(hWnd);
-			x->begindraw();
-			x->clearall(defaultbackgroundcolor);
-			x->drawtext(L"×îÐ¡»¯", 12, RectF(0, 0, 70, 30));
-			x->enddraw();
-		}
-		default:
-			break;
-		}
-		return ::DefWindowProc(hWnd, Message, wParam, lParam);
-	}
-
-	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable)
+	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, const cuirect& _Position, const std::wstring& _text, bool Enable)
 		:observer(),
 		subject(),
 		iffocus(false),
@@ -972,13 +916,6 @@ namespace cibbonui
 		ifin(false)
 	{
 		rPosition = { static_cast<LONG>(Position.left), static_cast<LONG>(Position.top), static_cast<LONG>(Position.right), static_cast<LONG>(Position.bottom) };
-		addevents(mousehover, [](cuievent* pe)->void
-		{
-			cuiTooltip::getTooltip()->show(pe->eventposition, L"haha");
-		});
-		addevents(mousemoveout, [](cuievent* pe)->void{
-			cuiTooltip::getTooltip()->hide();
-		});
 	}
 
 	cibboncontrolbase::~cibboncontrolbase()
@@ -986,16 +923,11 @@ namespace cibbonui
 		delete pPatternManager;
 	}
 
-
-	template<typename P,typename R>
-	inline bool ifinrect(P Point, R Rect)
-	{
-		return Point.x > Rect.left && Point.x < Rect.right && Point.y > Rect.top && Point.y < Rect.bottom;
-	}
-
 	void cibboncontrolbase::HandleNotify(cuievent* pceb)
 	{
 		if (pceb->eventname == controlinit) goto notify;
+		
+		
 		bool x(ifinrect( pceb->eventposition,rPosition));
 		if (pceb->eventname == mousemove)
 		{

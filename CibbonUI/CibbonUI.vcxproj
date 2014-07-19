@@ -87,6 +87,7 @@
     <ClInclude Include="cibbonwindowbase.h" />
     <ClInclude Include="cuibutton.h" />
     <ClInclude Include="cuirendermanager.h" />
+    <ClInclude Include="cuiTab.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="uibase.h" />
@@ -94,6 +95,7 @@
   <ItemGroup>
     <ClCompile Include="cibbonwindowbase.cpp" />
     <ClCompile Include="cuibutton.cpp" />
+    <ClCompile Include="cuiTab.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

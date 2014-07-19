@@ -8,7 +8,7 @@ namespace cibbonui{
 	class glowwindow;
 	class cuiTooltip;
 	class cibboncontrolbase;
-
+	class PatternManagerBase;
 	class observer
 	{
 	public:
@@ -35,35 +35,51 @@ namespace cibbonui{
 	protected:
 		std::vector<observer*> Observers;
 	};
-
-
-
 	class cuiwindowbase : public subject
 	{
-		friend class glowwindow;
-		friend class cuiTooltip;
 	public:
 		using winfunc = std::function<bool CALLBACK(WINPAR)>;
-		cuiwindowbase();
-		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width = 640, cint _height = 480);
-		virtual ~cuiwindowbase();
-		void run();
+		cuiwindowbase() = default;
+		cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width = 640, cint _height = 480, cdword dwExStyle = 0, std::wstring classname = L"cuistdwindow", HWND Parent = NULL);
+		virtual ~cuiwindowbase() = default;
+
 		HWND gethwnd() const
 		{
 			return m_hWnd;
 		}
-		CRect getPosition() const
+		cuirect getclientPosition() const
 		{
 			RECT rect;
 			GetClientRect(m_hWnd, &rect);
-			return D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom));
+			return cuirect(rect);
+		}
+		RECT getwindowPosition() const
+		{
+			RECT rect;
+			GetWindowRect(m_hWnd, &rect);
+			return rect;
+		}
+		void setPosition(RECT _rect, UINT uFlags = SWP_SHOWWINDOW)//全局矩形
+		{
+			SetWindowPos(m_hWnd, 0, _rect.left, _rect.top, _rect.right - _rect.left, _rect.bottom - _rect.top, uFlags);
+		}
+		HINSTANCE gethInst()const
+		{
+			return hInst;
+		}
+
+		void setWindowText(const std::wstring& _text)
+		{
+			title = _text;
 		}
 		void addevents(UINT Message, winfunc Func);
 	protected:
 		virtual void initevents() = 0;
 		//具体实现应该形如addevents(WM_SIZE,_Func)
-		virtual void init();
-		void runmessageloop();
+		void init();
+		HWND m_hWnd;
+		HWND ParenthWnd;
+		std::wstring windowclassname;
 		std::wstring title;
 	private:
 
@@ -71,8 +87,8 @@ namespace cibbonui{
 			(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
 		std::map <UINT, std::vector<winfunc>> windowmessage;
 		HINSTANCE hInst;
-		HWND m_hWnd;
-		
+
+
 		cdword windowstyle;
 		cdword extendstyle;
 		cint width;
@@ -84,17 +100,19 @@ namespace cibbonui{
 	{
 	public:
 		cuistdwindow();
-		cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_POPUP, cdword dwExStyle = 0 , cint _width = 640, cint _height = 480);
+		cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle = WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_POPUP, cdword dwExStyle = 0, cint _width = 640, cint _height = 480);
 		~cuistdwindow();
+		void run();
+		void runmessageloop();
 	protected:
 		void initevents() override;
-		void addhelper(UINT Message, cuieventenum cuienum,bool bif);
+		void addhelper(UINT Message, cuieventenum cuienum, bool bif);
 	private:
 		bool iftrack;
 
 	};
 
-	class glowwindow
+	class glowwindow : public cuiwindowbase
 	{
 	public:
 		enum ShadowStatus
@@ -103,14 +121,14 @@ namespace cibbonui{
 			shadowvisible = 1 << 1,	// Shadow window is visible
 			parentvisible = 1 << 2,	// Parent window is visible, if not, the above one is always false
 		};
-		glowwindow(cuiwindowbase* _pOwner,cint size = 3);
+		glowwindow(cuiwindowbase* _pOwner, cint size = 3);
 		~glowwindow() = default;
 	private:
 		void update();
 		void show();
 		void init();
 		void initevents();
-		void MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent,cint Color = D2D1:: ColorF::Black);
+		void MakeShadow(UINT32 *pShadBits, HWND hParent, RECT *rcParent, cint Color = D2D1::ColorF::Black);
 
 		HWND thishwnd;
 		bool ifupdate;
@@ -120,30 +138,24 @@ namespace cibbonui{
 		LPARAM m_WndSize;
 	};
 
-	class cuiTooltip
+	class cuiTooltip 
 	{
 	public:
-
-		void show(CPointf point, std::wstring text);
-		void hide();
-		static const std::unique_ptr<cuiTooltip>& getTooltip();
-		static void setpOwner(cuiwindowbase* p);
-
-		~cuiTooltip() = default;
+		cuiTooltip(RECT _rect, const std::wstring& text);
+		static void setpOwner(cuiwindowbase* p)
+		{
+			cuiTooltip::pOwner = p;
+		}
 	private:
-		cuiTooltip();
-
-		HWND m_hWnd;
 		static cuiwindowbase* pOwner;
-		static std::unique_ptr<cuiTooltip> pTooltip;
-		static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+		
 	};
 
 	class cibboncontrolbase :public observer, public subject
 	{
 	public:
 		cibboncontrolbase();
-		cibboncontrolbase(PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
+		cibboncontrolbase(PatternManagerBase* pPatternManager, const cuirect& _Position, const std::wstring& _text, bool Enable = true);
 		virtual ~cibboncontrolbase();
 		void HandleNotify(cuievent*) override;
 
@@ -155,11 +167,11 @@ namespace cibbonui{
 		{
 			return windowtext;
 		}
-		void setPosition(const CRect& _pos)
+		void setPosition(const cuirect& _pos)
 		{
 			Position = _pos;
 		}
-		const CRect& getPosition() const
+		const cuirect& getPosition() const
 		{
 			return Position;
 		}
@@ -167,15 +179,21 @@ namespace cibbonui{
 		{
 			return pPatternManager;
 		}
+
+		void RegisterTooltip(const std::wstring& _text)
+		{
+			cuiTooltip x(rPosition, _text);
+			
+		}
 	private:
 		bool iffocus;
 		bool ifenabled;
-		
-		CRect Position;
+		cuiTooltip* pTooltip;
+		cuirect Position;
 		RECT rPosition;
 		std::wstring windowtext;
 		std::map <cint, std::vector<std::function<void(cuievent* pe)>>> EventHandler;
-
+		std::wstring Tooltiptext;
 	protected:
 		bool ifin;
 		PatternManagerBase* pPatternManager;
@@ -191,7 +209,7 @@ namespace cibbonui{
 
 	class cuistatic :public cibboncontrolbase
 	{
-		cuistatic(PatternManagerBase* pPatternManager, const CRect& _Position, const std::wstring& _text, bool Enable = true);
+		cuistatic(PatternManagerBase* pPatternManager, const cuirect& _Position, const std::wstring& _text, bool Enable = true);
 	private:
 		void initevents() override;
 	};
