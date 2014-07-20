@@ -10,28 +10,28 @@ namespace cibbonui
 
 		//daystylecolors
 		{
-		defaultbackgroundcolor,
-		defaultcontentcolor,
-		defaultdisabledcontentcolor,
-		defaultmoveinbackgroundcolor,
-		defaultmoveincontentcolor,
-		defaultclickbackgroundcolor,
-		defaultclickcontentcolor,
-		defaulttitlecolor,
-		defaultshadowcolor
+			defaultbackgroundcolor,
+			defaultcontentcolor,
+			defaultdisabledcontentcolor,
+			defaultmoveinbackgroundcolor,
+			defaultmoveincontentcolor,
+			defaultclickbackgroundcolor,
+			defaultclickcontentcolor,
+			defaulttitlecolor,
+			defaultshadowcolor
 		}
 		,
 		//nightstylecolors
 		{
-		nightbackgroundcolor,
-		nightcontentcolor,
-		nightdisabledcontentcolor,
-		nightmoveinbackgroundcolor,
-		nightmoveincontentcolor,
-		nightclickbackgroundcolor,
-		nightclickcontentcolor,
-		nighttitlecolor,
-		nightshadowcolor
+			nightbackgroundcolor,
+			nightcontentcolor,
+			nightdisabledcontentcolor,
+			nightmoveinbackgroundcolor,
+			nightmoveincontentcolor,
+			nightclickbackgroundcolor,
+			nightclickcontentcolor,
+			nighttitlecolor,
+			nightshadowcolor
 
 		}
 	};
@@ -58,7 +58,7 @@ namespace cibbonui
 	unique_ptr<IDWriteFactory, std::function<void(IDWriteFactory*)>> FactoryManager::pDwFactory(nullptr, [](IDWriteFactory* p)->void{Free(p); });
 	std::map<HWND, std::shared_ptr<cuirendermanager>> cuirendermanager::RenderManagers;
 	cuiwindowbase* cuiTooltip::pOwner(nullptr);
-	
+
 	inline const unique_ptr<ID2D1Factory, std::function<void(ID2D1Factory*)>>& FactoryManager::getpD2DFactory()
 	{
 		if (!FactoryManager::pD2DFactory)
@@ -129,14 +129,14 @@ namespace cibbonui
 		pRT->Resize(SizeU(x, y));
 	}
 
-	 void cuirendermanager::clearall(cint Color)
+	void cuirendermanager::clearall(cint Color)
 	{
 		return pRT->Clear(ColorF(Color));
 	}
 
-	 void cuirendermanager::begindraw()
+	void cuirendermanager::begindraw()
 	{
-		 pRT->BeginDraw();
+		pRT->BeginDraw();
 	}
 
 	void cuirendermanager::enddraw()
@@ -158,11 +158,11 @@ namespace cibbonui
 		brushmap[color] = pBrush;
 		return pBrush;
 	}
-	ID2D1LinearGradientBrush* cuirendermanager::getBrush(cint color1, cint color2 , cuirect _rect)
+	ID2D1LinearGradientBrush* cuirendermanager::getBrush(cint color1, cint color2, cuirect _rect)
 	{
 		ID2D1LinearGradientBrush* pBrush = nullptr;
 		ID2D1GradientStopCollection* pStop = nullptr;
-	    D2D1_GRADIENT_STOP Stop[] = {
+		D2D1_GRADIENT_STOP Stop[] = {
 			{ 0.f, ColorF(color1) },
 			{ 1.f, ColorF(color2) }
 		};
@@ -173,8 +173,8 @@ namespace cibbonui
 			&pStop);
 		if (FAILED(hr)) std::abort();
 		hr = pRT->CreateLinearGradientBrush(LinearGradientBrushProperties(
-			Point2F(_rect.left + (_rect.right - _rect.left) / 2, _rect.top), 
-			Point2F(_rect.left + (_rect.right - _rect.left) / 2, _rect.bottom)), 
+			Point2F(_rect.left + (_rect.right - _rect.left) / 2, _rect.top),
+			Point2F(_rect.left + (_rect.right - _rect.left) / 2, _rect.bottom)),
 			pStop, &pBrush);
 		if (FAILED(hr)) std::abort();
 		pStop->Release();
@@ -184,11 +184,15 @@ namespace cibbonui
 	void cuirendermanager::FillRect(const cuirect& rect, cint color1, cint color2)
 	{
 		auto p = getBrush(color1, color2, rect);
-		pRT->FillRectangle(rect,p);
+		pRT->FillRectangle(rect, p);
 		p->Release();
 	}
 
-
+	void cuirendermanager::setxytransform(cint xoffset, cint yoffset)
+	{
+		auto t = D2D1::Matrix3x2F::Translation(xoffset, yoffset);
+		pRT->SetTransform(t);
+	}
 	IDWriteTextFormat* cuirendermanager::getFormat(float fontsize, wstring fontname)
 	{
 		IDWriteTextFormat* pFormat = nullptr;
@@ -211,7 +215,7 @@ namespace cibbonui
 		return pRT->DrawRectangle(rect, getBrush(color), linewidth);
 	}
 
-	 void cuirendermanager::drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth, cint color)
+	void cuirendermanager::drawline(const CPointf& ltop, const CPointf& rbottom, float linewidth, cint color)
 	{
 		return pRT->DrawLine(ltop, rbottom, getBrush(color), linewidth);
 	}
@@ -244,12 +248,12 @@ namespace cibbonui
 	{
 
 	}
-	 void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color ,wstring fontname)
+	void PatternManagerBase::drawtexthelper(cibboncontrolbase* pControl, DWRITE_TEXT_ALIGNMENT Alig, cint Color, wstring fontname)
 	{
-		return pRendermanager->drawtext(pControl->getwindowtext().c_str(),(pControl->getPosition().bottom - pControl->getPosition().top)/2.0f, pControl->getPosition(),fontname, Alig, Color);
+		return pRendermanager->drawtext(pControl->getwindowtext().c_str(), (pControl->getPosition().bottom - pControl->getPosition().top) / 2.0f, pControl->getPosition(), fontname, Alig, Color);
 	}
 
-	
+
 
 	/******************************************************************
 	*                                                                 *
@@ -261,7 +265,6 @@ namespace cibbonui
 	******************************************************************/
 
 
-	
 
 	cuiwindowbase::cuiwindowbase(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cint _width, cint _height, cdword dwExStyle, wstring classname, HWND Parent)
 		:
@@ -358,10 +361,23 @@ namespace cibbonui
 
 	cuistdwindow::cuistdwindow(HINSTANCE _hInst, std::wstring _title, cdword _windowstyle, cdword dwExStyle, cint _width, cint _height)
 		:cuiwindowbase(_hInst, _title, _windowstyle, _width, _height, dwExStyle)
-		, iftrack(true)
+		, iftrack(true),
+		closebutton(this, cuirect(getclientPosition().right - closebuttonwidth, 0.f, getclientPosition().right, Captionheight), L"\162"),
+		minibutton(this, cuirect(getclientPosition().right - 2 * closebuttonwidth, 0.f, getclientPosition().right - closebuttonwidth, Captionheight), L"\60"),
+		gw(this)
 	{
 		initevents();
 		cuiTooltip::setpOwner(this);
+		closebutton.Onclick([](cuievent* pe)->void{
+			::PostQuitMessage(0);
+		});
+		minibutton.Onclick([&](cuievent* pe)->void{
+			::CloseWindow(m_hWnd);
+		});
+		registerobserver(&closebutton);
+		registerobserver(&minibutton);
+		closebutton.RegisterTooltip(L"关闭窗口");
+		minibutton.RegisterTooltip(L"最小化");
 	}
 	void cuistdwindow::run()
 	{
@@ -380,7 +396,6 @@ namespace cibbonui
 			::DispatchMessage(&msg);
 		}
 	}
-	cuistdwindow::cuistdwindow() :cuiwindowbase(){}
 	cuistdwindow::~cuistdwindow(){}
 
 	void cuistdwindow::initevents()
@@ -446,7 +461,7 @@ namespace cibbonui
 		addevents(WM_LBUTTONUP, [=](WINPAR)->bool{
 			ReleaseCapture();
 			cuievent bevent;
-			bevent.eventposition = { static_cast<float>(GET_X_LPARAM(lParam)), static_cast<float>( GET_Y_LPARAM(lParam)) };
+			bevent.eventposition = { static_cast<float>(GET_X_LPARAM(lParam)), static_cast<float>(GET_Y_LPARAM(lParam)) };
 			bevent.eventname = lbuttonup;
 			notifyobservers(&bevent);
 			return already;
@@ -463,7 +478,7 @@ namespace cibbonui
 	{
 		addevents(Message, [=](WINPAR)->bool{
 			cuievent bevent;
-			bevent.eventposition = { static_cast<float>(GET_X_LPARAM(lParam)), static_cast<float>( GET_Y_LPARAM(lParam) )};
+			bevent.eventposition = { static_cast<float>(GET_X_LPARAM(lParam)), static_cast<float>(GET_Y_LPARAM(lParam)) };
 			bevent.eventname = cuienum;
 			notifyobservers(&bevent);
 			return notyet;
@@ -875,7 +890,7 @@ namespace cibbonui
 		}
 	}
 
-	cuiTooltip::cuiTooltip(RECT _rect,const wstring& text) 
+	cuiTooltip::cuiTooltip(RECT _rect, const wstring& text)
 	{
 		HWND hwndTT = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, NULL,
 			WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
@@ -897,15 +912,11 @@ namespace cibbonui
 		SendMessage(hwndTT, TTM_ADDTOOL, 0, (LPARAM)(LPTOOLINFO)&ti);
 
 	}
+
+
+
 	
-
-
-	template<typename P,typename R>
-	inline bool ifinrect(P Point, R Rect)
-	{
-		return Point.x > Rect.left && Point.x < Rect.right && Point.y > Rect.top && Point.y < Rect.bottom;
-	}
-	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, const cuirect& _Position, const std::wstring& _text, bool Enable)
+	cibboncontrolbase::cibboncontrolbase(PatternManagerBase* _pPatternManager, cuiwindowbase* _pOwner, const cuirect& _Position, const std::wstring& _text, bool Enable)
 		:observer(),
 		subject(),
 		iffocus(false),
@@ -913,45 +924,186 @@ namespace cibbonui
 		windowtext(_text),
 		ifenabled(Enable),
 		pPatternManager(_pPatternManager),
-		ifin(false)
+		ifin(false),
+		pOwner(_pOwner)
 	{
 		rPosition = { static_cast<LONG>(Position.left), static_cast<LONG>(Position.top), static_cast<LONG>(Position.right), static_cast<LONG>(Position.bottom) };
 	}
 
-	cibboncontrolbase::~cibboncontrolbase()
+	cibboncontrolbase::cibboncontrolbase() :
+		pPatternManager(nullptr), ifin(false), ifenabled(true), pOwner(nullptr)
 	{
-		delete pPatternManager;
+
 	}
 
-	void cibboncontrolbase::HandleNotify(cuievent* pceb)
+
+	cibboncontrolbase::~cibboncontrolbase()
 	{
-		if (pceb->eventname == controlinit) goto notify;
-		
-		
-		bool x(ifinrect( pceb->eventposition,rPosition));
-		if (pceb->eventname == mousemove)
+		//delete pPatternManager;
+	}
+
+	void cibboncontrolbase::HandleNotify(cuievent ce)
+	{
+		if (ce.eventname == controlinit) goto notify;
+
+		bool x(ifinrect(ce.eventposition, Position));
+		if (ce.eventname == mousemove)
 		{
-			if ((!x && !ifin) || (x && ifin)) return;
-			pceb->eventname = x ? mousemovein : mousemoveout;
+			if (x == ifin) return;
+			ce.eventname = x ? mousemovein : mousemoveout;
 			ifin = x;
 		}
+		else if (ce.eventname == mousemoveout)
+			ifin = false;
 		else
-		{
 			if (!x) return;
-		}
+		
 		/*else if (!iffocus&&pceb->eventname!=lbuttondown)
 			return;*/
 	notify:
-		auto it = EventHandler.find(pceb->eventname);
+		auto it = EventHandler.find(ce.eventname);
 		if (it != EventHandler.end())
 		{
 			for (auto vit : it->second)
-				vit(pceb);
+				vit(&ce);
 		}
 	}
 
 
-	
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   Button                                        *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
 
+
+	ButtonPattern::ButtonPattern(HWND hWnd) : PatternManagerBase(hWnd)
+	{
+
+	}
+
+	void ButtonPattern::drawhelper(cibboncontrolbase* pControl, cint Color)
+	{
+		return drawtexthelper(pControl, Alignmentcenter, Color);//正常的按钮 只有文字
+	}
+
+	void ButtonPattern::drawdown(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), SkinManager::getStyleColor(clickbackgroundcolornum));
+		drawhelper(pControl, SkinManager::getStyleColor(clickcontentcolornum));
+		pRendermanager->enddraw();
+	}
+	void ButtonPattern::drawusual(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), SkinManager::getStyleColor(backgroundcolornum));
+		drawhelper(pControl, SkinManager::getStyleColor(contentcolornum));
+		pRendermanager->enddraw();
+	}
+	void ButtonPattern::drawmove(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(pControl->getPosition(), SkinManager::getStyleColor(moveinbackgroundcolornum));
+		drawhelper(pControl, SkinManager::getStyleColor(moveincontentcolornum));
+		pRendermanager->enddraw();
+	}
+	inline void ButtonPattern::drawup(cibboncontrolbase* pControl)
+	{
+		return drawusual(pControl);
+	}
+
+	void ButtonPattern::initdraw(cibboncontrolbase* pControl)
+	{
+		return drawusual(pControl);
+	}
+
+	SizeBoxPattern::SizeBoxPattern(HWND hWnd) :ButtonPattern(hWnd)
+	{
+
+	}
+
+	void SizeBoxPattern::drawhelper(cibboncontrolbase* pControl, cint Color)
+	{
+		return drawtexthelper(pControl, Alignmentcenter, Color, L"Webdings");
+	}
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   Fixed Tabs                                    *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
+
+	cuiFixedTab::cuiFixedTab(cuiwindowbase* pwindow, const std::wstring& _text, bool Enable)
+		:cibboncontrolbase(nullptr, pwindow, cuirect(), _text, Enable)
+	{
+		initevents();
+	}
+
+
+	TabPattern::TabPattern(HWND hWnd) :PatternManagerBase(hWnd)
+	{
+
+	}
+
+	void TabPattern::drawusual(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->setxytransform(0, Captionheight);
+		pRendermanager->drawrect(cuirect(
+			pControl->getPosition().left - 0.5f,
+			pControl->getPosition().top - 0.5f,
+			pControl->getPosition().right + 0.5f,
+			pControl->getPosition().bottom + 0.5f), 1.2f,0xacacac);
+		pRendermanager->FillRect(pControl->getPosition(), 0xf0f0f0, 0xe5e5e5);
+		pRendermanager->drawtext(pControl->getwindowtext(),12,pControl->getPosition());
+		pRendermanager->setxytransform(0, 0);
+		pRendermanager->enddraw();
+	}
+
+	void TabPattern::initdraw(cibboncontrolbase* pControl)
+	{
+		return drawusual(pControl);
+	}
+
+	void TabPattern::drawmove(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->setxytransform(0, Captionheight);
+		pRendermanager->drawrect(cuirect(
+			pControl->getPosition().left - 0.5f,
+			pControl->getPosition().top - 0.5f,
+			pControl->getPosition().right + 0.5f,
+			pControl->getPosition().bottom + 0.5f), 1.2f, 0x7bb2ea);
+		pRendermanager->FillRect(pControl->getPosition(), 0xeef5fb, 0xdaebfb);
+		pRendermanager->drawtext(pControl->getwindowtext(), 12, pControl->getPosition());
+		pRendermanager->setxytransform(0, 0);
+		pRendermanager->enddraw();
+	}
+	void TabPattern::drawdown(cibboncontrolbase* pControl)
+	{
+
+	}
+	void TabPattern::drawclear(cibboncontrolbase* pControl)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->setxytransform(0, Captionheight);
+		pRendermanager->FillRect(cuirect(pControl->getPosition().left - 0.5f,
+			pControl->getPosition().top + 21.5f,
+			pControl->getPosition().right,
+			pControl->getPosition().bottom),
+			defaultbackgroundcolor);
+		pRendermanager->drawline(D2D1::Point2F(pControl->getPosition().left - 0.5f,
+			pControl->getPosition().top + 21.5f),
+			D2D1::Point2F(pControl->getPosition().right, pControl->getPosition().top + 21.5f)
+			, 1.2f, 0xacacac);
+		pRendermanager->setxytransform(0, 0);
+		pRendermanager->enddraw();
+	}
 }
 

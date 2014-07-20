@@ -7,6 +7,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CibbonUI", "CibbonUI\Cibbon
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CibbonButtonDemo", "CibbonButtonDemo\CibbonButtonDemo.vcxproj", "{5E0F0E39-2733-4F52-814F-4EFBC904EE66}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Demos", "Demos", "{1D4E8BB6-1163-405B-BFC8-5D7B8B3FC747}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FixedTabDemo", "FixedTabDemo\FixedTabDemo.vcxproj", "{593E90E3-AA60-490D-9B92-893B48858FBD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -21,8 +25,16 @@ Global
 		{5E0F0E39-2733-4F52-814F-4EFBC904EE66}.Debug|Win32.Build.0 = Debug|Win32
 		{5E0F0E39-2733-4F52-814F-4EFBC904EE66}.Release|Win32.ActiveCfg = Release|Win32
 		{5E0F0E39-2733-4F52-814F-4EFBC904EE66}.Release|Win32.Build.0 = Release|Win32
+		{593E90E3-AA60-490D-9B92-893B48858FBD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{593E90E3-AA60-490D-9B92-893B48858FBD}.Debug|Win32.Build.0 = Debug|Win32
+		{593E90E3-AA60-490D-9B92-893B48858FBD}.Release|Win32.ActiveCfg = Release|Win32
+		{593E90E3-AA60-490D-9B92-893B48858FBD}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{5E0F0E39-2733-4F52-814F-4EFBC904EE66} = {1D4E8BB6-1163-405B-BFC8-5D7B8B3FC747}
+		{593E90E3-AA60-490D-9B92-893B48858FBD} = {1D4E8BB6-1163-405B-BFC8-5D7B8B3FC747}
 	EndGlobalSection
 EndGlobal

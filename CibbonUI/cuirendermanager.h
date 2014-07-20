@@ -4,6 +4,11 @@
 
 namespace cibbonui{
 
+	template<typename P, typename R>
+	inline bool ifinrect(P Point, R Rect)
+	{
+		return Point.x > Rect.left && Point.x < Rect.right && Point.y > Rect.top && Point.y < Rect.bottom;
+	}
 	struct cuirect
 	{
 		float left;
@@ -21,6 +26,7 @@ namespace cibbonui{
 		operator RECT() const
 		{
 			RECT rc = { static_cast<LONG>(left), static_cast<LONG>(top), static_cast<LONG>(right), static_cast<LONG>(bottom) };
+			return rc;
 		}
 		cuirect(float x1, float y1, float x2, float y2) :left(x1), top(y1), right(x2), bottom(y2)
 		{
@@ -33,15 +39,15 @@ namespace cibbonui{
 		cuirect(const cuirect& r) :left(r.left), top(r.top), right(r.right), bottom(r.bottom)
 		{
 
+		}cuirect(cuirect&& r) :left(r.left), top(r.top), right(r.right), bottom(r.bottom)
+		{
+
 		}
 		cuirect(const RECT& r) :left(static_cast<float>(r.left)), top(static_cast<float>(r.top)), right(static_cast<float>(r.right)), bottom(static_cast<float>(r.bottom))
 		{
 
 		}
-		cuirect(cuirect&& r) :left(r.left), top(r.top), right(r.right), bottom(r.bottom)
-		{
-
-		}
+		
 		cuirect operator / (int rat)
 		{
 			return operator/(static_cast<float>(rat));
@@ -59,7 +65,6 @@ namespace cibbonui{
 		{
 			return !(r1 == r2);
 		}
-	private:
 		
 
 	};
@@ -96,6 +101,7 @@ namespace cibbonui{
 		void FillRect(const cuirect& rect, int color = D2D1::ColorF::White);
 		void FillRect(const cuirect& rect, cint color1, cint color2);
 		void drawtext(std::wstring text, float fontsize, const cuirect& _rect, std::wstring fontname = L"Microsoft YaHei", DWRITE_TEXT_ALIGNMENT Alig = Alignmentcenter, cint color = D2D1::ColorF::Black);
+		void setxytransform(cint xoffset, cint yoffset);
 	private:
 
 		cuirendermanager() = default;
@@ -105,19 +111,13 @@ namespace cibbonui{
 		bool ifbegin;
 		cuirect windowrect;
 		std::map<int, ID2D1SolidColorBrush*> brushmap;
-		//std::map<cint, ID2D1LinearGradientBrush> LinearBrushmap;
 
 		unsigned int beginnum;
-		//CRITICAL_SECTION g_cs ;
 		float DPIX;
 		float DPIY;
 
-		//ID2D1Factory* pD2DFactory;
 		ID2D1HwndRenderTarget* pRT;
-		//IDWriteFactory* pDwFactory;
 		
-		
-		//void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
 		ID2D1SolidColorBrush* getBrush(int color);
 		ID2D1LinearGradientBrush* getBrush(cint color1, cint color2,cuirect _rect);
@@ -131,7 +131,7 @@ namespace cibbonui{
 	public:
 		PatternManagerBase(HWND hWnd);
 		virtual void drawusual(cibboncontrolbase* pControl) = 0;
-		virtual void drawfocus(cibboncontrolbase* pControl) = 0;
+		virtual void drawdown(cibboncontrolbase* pControl) = 0;
 		virtual void drawmove(cibboncontrolbase* pControl) = 0;
 		virtual void initdraw(cibboncontrolbase* pControl) = 0;
 		virtual ~PatternManagerBase() = default;
@@ -142,20 +142,6 @@ namespace cibbonui{
 	
 	};
 
-	/*class CCaptionPattern : public ButtonPattern
-	{
-	public:
-		CCaptionPattern(HWND hWnd);
-		~CCaptionPattern();
-		void drawusual(cibboncontrolbase* pControl) override final ;
-		void drawfocus(cibboncontrolbase* pControl) override final;
-		void drawmove(cibboncontrolbase* pControl) override final  ;
-		void drawdown(cibboncontrolbase* pControl) override final ;
-		void drawup(cibboncontrolbase* pControl) override final ;
-		void initdraw(cibboncontrolbase* pControl) override  final;
-	private:
-
-	};*/
 
 	template<layoutenum L>
 	class LayoutManager
