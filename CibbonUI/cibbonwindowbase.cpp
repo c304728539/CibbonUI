@@ -950,7 +950,7 @@ namespace cibbonui
 		if (ce.eventname == mousemove)
 		{
 			if (x == ifin) return;
-			ce.eventname = x ? mousemovein : mousemoveout;
+			ce.eventname = (x ? mousemovein : mousemoveout);
 			ifin = x;
 		}
 		else if (ce.eventname == mousemoveout)
@@ -1045,6 +1045,32 @@ namespace cibbonui
 		initevents();
 	}
 
+	void cuiFixedTab::initevents()
+	{
+		addevents(controlinit, [this](cuievent* pe)->void
+		{
+			pPatternManager->initdraw(this);
+		});
+		addevents(mousemovein, [this](cuievent* pe)->void
+		{
+			pPatternManager->drawmove(this);
+		});
+		addevents(mousemoveout, [this](cuievent* pe)->void
+		{
+			pPatternManager->drawusual(this);
+		});
+		addevents(tabselected, [this](cuievent* pe)->void//会先发送selected/unselected消息
+		{
+			ifselected = true;
+			EventPosition = cuirect(Position.left - 3, Position.top - 3, Position.right + 3, Position.bottom);
+		});
+		addevents(tabunselected, [this](cuievent* pe)->void
+		{
+			ifselected = false;
+			EventPosition = Position;
+			std::static_pointer_cast<TabPattern>(pPatternManager)->clearBack(this);
+		});
+	}
 
 	TabPattern::TabPattern(HWND hWnd) :PatternManagerBase(hWnd)
 	{
@@ -1053,56 +1079,138 @@ namespace cibbonui
 
 	void TabPattern::drawusual(cibboncontrolbase* pControl)
 	{
-		pRendermanager->begindraw();
-		pRendermanager->setxytransform(0, Captionheight);
-		pRendermanager->drawrect(cuirect(
-			pControl->getPosition().left - 0.5f,
-			pControl->getPosition().top - 0.5f,
-			pControl->getPosition().right + 0.5f,
-			pControl->getPosition().bottom + 0.5f), 1.2f,0xacacac);
-		pRendermanager->FillRect(pControl->getPosition(), 0xf0f0f0, 0xe5e5e5);
-		pRendermanager->drawtext(pControl->getwindowtext(),12,pControl->getPosition());
-		pRendermanager->setxytransform(0, 0);
-		pRendermanager->enddraw();
+		//pRendermanager->begindraw();
+		//auto pTab = static_cast<cuiFixedTab*>(pControl);
+		//cuirect fillrect;
+		//pRendermanager->FillRect(cuirect(
+		//	pControl->getPosition().left - 1.f,
+		//	pControl->getPosition().top + 4.f,
+		//	pControl->getPosition().right + 1.f,
+		//	pControl->getPosition().bottom), SkinManager::getStyleColor(backgroundcolornum));
+		//if (!pTab->ifselected)
+		//{
+		//	fillrect = cuirect(pControl->getPosition().left + 1.f,
+		//		pControl->getPosition().top + 1.f,
+		//		pControl->getPosition().right - 1.f,
+		//		pControl->getPosition().bottom - 1.f);
+		//	//pRendermanager->drawrect(pControl->getPosition(), 1.2f, 0x777777);
+		//	pRendermanager->FillRect(fillrect, 0xf0f0f0, 0xe5e5e5);
+		//	pRendermanager->drawrect(pControl->getPosition(), 1.2f, 0xacacac);
+		//}
+		//else
+		//{
+		//	fillrect = cuirect(
+		//		pControl->getPosition().left + 1.5f,
+		//		pControl->getPosition().top + 0.5f - 3.f,
+		//		pControl->getPosition().right - 0.5f,
+		//		pControl->getPosition().bottom - 0.5f);
+		//	pRendermanager->FillRect(fillrect, 0xffffff);
+		//	pRendermanager->drawrect(fillrect, 1.2f, 0xacacac);
+		//}
+
+		//pRendermanager->drawtext(pControl->getwindowtext(), 12, pControl->getPosition());
+		//pRendermanager->enddraw();
+		return initdraw(pControl);
 	}
 
 	void TabPattern::initdraw(cibboncontrolbase* pControl)
 	{
-		return drawusual(pControl);
+		pRendermanager->begindraw();
+		//pRendermanager->setxytransform(0, Captionheight);0xacacac
+		auto pTab = static_cast<cuiFixedTab*>(pControl);
+		cuirect fillrect;
+		
+		if (!pTab->ifselected)
+		{
+			fillrect = cuirect(pControl->getPosition().left + 1.f,
+				pControl->getPosition().top + 1.f,
+				pControl->getPosition().right - 1.f,
+				pControl->getPosition().bottom - 1.f);
+			//pRendermanager->drawrect(pControl->getPosition(), 1.2f, 0x777777);
+			pRendermanager->FillRect(fillrect, 0xf0f0f0, 0xe5e5e5);
+			pRendermanager->drawrect(pControl->getPosition(), 1.2f, 0xacacac);
+		}
+		else
+		{
+			fillrect = cuirect(
+				pControl->getPosition().left + 1.5f - 3.f,
+				pControl->getPosition().top + 0.5f - 3.f,
+				pControl->getPosition().right - 0.5f +3.f,
+				pControl->getPosition().bottom - 0.5f);
+			pRendermanager->FillRect(fillrect, 0xffffff);
+			pRendermanager->drawrect(pTab->EventPosition, 1.2f, 0xacacac);
+		}
+		pRendermanager->drawtext(pControl->getwindowtext(), 12, fillrect);
+		pRendermanager->enddraw();
 	}
 
 	void TabPattern::drawmove(cibboncontrolbase* pControl)
 	{
+		auto pTab = static_cast<cuiFixedTab*>(pControl);
+		if (pTab->ifselected) return initdraw(pControl);
 		pRendermanager->begindraw();
-		pRendermanager->setxytransform(0, Captionheight);
-		pRendermanager->drawrect(cuirect(
-			pControl->getPosition().left - 0.5f,
-			pControl->getPosition().top - 0.5f,
-			pControl->getPosition().right + 0.5f,
-			pControl->getPosition().bottom + 0.5f), 1.2f, 0x7bb2ea);
-		pRendermanager->FillRect(pControl->getPosition(), 0xeef5fb, 0xdaebfb);
+		//pRendermanager->setxytransform(0, Captionheight);0x7bb2ea
+		
+		pRendermanager->drawrect(pControl->getPosition(), 1.2f, 0x7bb2ea);
+		pRendermanager->FillRect(cuirect(
+			pControl->getPosition().left + 1.5,
+			pControl->getPosition().top + 0.5,
+			pControl->getPosition().right - 0.5,
+			pControl->getPosition().bottom - 0.5), 0xeef5fb, 0xdaebfb);
 		pRendermanager->drawtext(pControl->getwindowtext(), 12, pControl->getPosition());
-		pRendermanager->setxytransform(0, 0);
+		/*pRendermanager->drawline(D2D1::Point2F(pControl->getPosition().left - 0.5f,
+			pControl->getPosition().top + 21.5f),
+			D2D1::Point2F(pControl->getPosition().right, pControl->getPosition().top + 21.5f)*/
+			/*, 1.f, 0xacacac);*/
+		//pRendermanager->setxytransform(0, 0);
 		pRendermanager->enddraw();
 	}
 	void TabPattern::drawdown(cibboncontrolbase* pControl)
 	{
-
 	}
 	void TabPattern::drawclear(cibboncontrolbase* pControl)
 	{
 		pRendermanager->begindraw();
-		pRendermanager->setxytransform(0, Captionheight);
-		pRendermanager->FillRect(cuirect(pControl->getPosition().left - 0.5f,
-			pControl->getPosition().top + 21.5f,
+		pRendermanager->FillRect(cuirect(pControl->getPosition().left,
+			pControl->getPosition().top + 21.f,
 			pControl->getPosition().right,
 			pControl->getPosition().bottom),
-			defaultbackgroundcolor);
+			0xffffff);
 		pRendermanager->drawline(D2D1::Point2F(pControl->getPosition().left - 0.5f,
 			pControl->getPosition().top + 21.5f),
 			D2D1::Point2F(pControl->getPosition().right, pControl->getPosition().top + 21.5f)
-			, 1.2f, 0xacacac);
-		pRendermanager->setxytransform(0, 0);
+			, 1.f, 0xacacac);
+		pRendermanager->enddraw();
+	}
+
+	void TabPattern::drawselected(cuiFixedTab* pTab)
+	{
+		//pRendermanager->begindraw();
+		//pRendermanager->FillRect(cuirect(
+		//	pTab->getPosition().left + 1.5f,
+		//	pTab->getPosition().top + 0.5f - 3.f,
+		//	pTab->getPosition().right - 0.5f,
+		//	pTab->getPosition().bottom - 0.5f),
+		//	0xffffff);//把选中的Tab背景色清理
+		//pRendermanager->drawrect(cuirect(pTab->getPosition().left,
+		//	pTab->getPosition().top - 3.f,
+		//	pTab->getPosition().right,
+		//	pTab->getPosition().bottom), 1.2f, 0xacacac);
+		//pRendermanager->drawtext(pTab->getwindowtext(), 12, cuirect(pTab->getPosition().left,
+		//	pTab->getPosition().top - 3.f,
+		//	pTab->getPosition().right,
+		//	pTab->getPosition().bottom));
+		//pRendermanager->enddraw();
+	}
+
+	void TabPattern::clearBack(cibboncontrolbase* pTab)
+	{
+		pRendermanager->begindraw();
+		pRendermanager->FillRect(cuirect(
+			pTab->getPosition().left - 1.f,
+			pTab->getPosition().top - 4.f,
+			pTab->getPosition().right + 1.f,
+			pTab->getPosition().bottom), SkinManager::getStyleColor(backgroundcolornum));
 		pRendermanager->enddraw();
 	}
 }

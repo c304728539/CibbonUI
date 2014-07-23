@@ -159,7 +159,7 @@ namespace cibbonui{
 		{
 			Position = _pos;
 		}
-		const cuirect& getPosition() const
+		cuirect getPosition() const
 		{
 			return Position;
 		}
@@ -202,6 +202,15 @@ namespace cibbonui{
 		void setPattern(const std::shared_ptr<PatternManagerBase>& p)
 		{
 			pPatternManager = p;
+		}
+		void HandleHelper(cuievent ce)
+		{
+			auto it = EventHandler.find(ce.eventname);
+			if (it != EventHandler.end())
+			{
+				for (auto vit : it->second)
+					vit(&ce);
+			}
 		}
 	};
 
@@ -325,6 +334,7 @@ namespace cibbonui{
 	class cuiFixedTab :public cibboncontrolbase
 	{
 		template<typename T> friend class cuiFixedTabs;
+		friend class TabPattern;
 	public:
 		
 		cuiFixedTab(cuiwindowbase* pwindow, const std::wstring& _text, bool Enable = true);
@@ -335,55 +345,36 @@ namespace cibbonui{
 			pOwner->registerobserver(pControl);
 		}
 		//void registerhelper()
-		/*void HandleNotify(cuievent* pe) override
+		void HandleNotify(cuievent ce) override
 		{
-			bool x(ifinrect(pe->eventposition, Position));
-			if (pe->eventname == lbuttondown)
-			{
-				
-				if (x == ifselected) return;
-				else ifselected = x;
-			}
-			if (pe->eventname == mousemove)
+			if (ce.eventname == controlinit) goto notify;
+
+			bool x(ifinrect(ce.eventposition, EventPosition));
+			if (ce.eventname == mousemove)
 			{
 				if (x == ifin) return;
-				pe->eventname = x ? mousemovein : mousemoveout;
+				ce.eventname = (x ? mousemovein : mousemoveout);
 				ifin = x;
 			}
-			else if (pe->eventname == mousemoveout)
+			else if (ce.eventname == mousemoveout)
 				ifin = false;
-			else
-				if (!x) return;
-			auto it = EventHandler.find(pe->eventname);
-			if (it != EventHandler.end())
-			{
-				for (auto vit : it->second)
-					vit(pe);
-			}
-		}*/
+
+			/*else if (!iffocus&&pceb->eventname!=lbuttondown)
+			return;*/
+		notify:
+			HandleHelper(ce);
+		
+
+		}
 	private:
 		cuiwindowbase* pWindow;
 		bool ifselected;
-		void initevents() override
-		{
-			addevents(controlinit, [this](cuievent* pe)->void
-			{
-				pPatternManager->initdraw(this);
-			});
-			addevents(lbuttondown, [this](cuievent* pe)->void
-			{
-				pPatternManager->drawdown(this);
-			});
-			addevents(mousemovein, [this](cuievent* pe)->void
-			{
-				pPatternManager->drawmove(this);
-			});
-		}
-	};
+		cuirect EventPosition;
+		void initevents() override;
 
 	
-
-
+	};
+	
 
 	template<typename T>
 	class cuiFixedTabs : public cibboncontrolbase
@@ -395,14 +386,17 @@ namespace cibbonui{
 		void AddTab(const std::initializer_list<cuiFixedTab*>& il);
 	private:
 		void initevents();
+		void HandleNotify(cuievent ce) override;
 		float endx;
+		bool iffirst;
+		int SelectedTabindex;
 
 	};
 
 	template<typename T>
 	cuiFixedTabs<T>::cuiFixedTabs(cuiwindowbase* pwindow, cuirect _Position, const std::wstring& _text, bool Enable)
-		:cibboncontrolbase(new T(pwindow->gethwnd()),pwindow, _Position, _text, Enable),
-		endx(_Position.left+0.5f)
+		:cibboncontrolbase(new T(pwindow->gethwnd()),pwindow, _Position.movedown(Captionheight), _text, Enable),
+		endx(_Position.left), iffirst(true), SelectedTabindex(0)
 	{
 		initevents();
 	}
@@ -417,11 +411,19 @@ namespace cibbonui{
 			tab->setPosition(cuirect(
 				temp,
 				Position.top,
-				endx += (tab->windowtext.size() *5+ 10),
+				endx += (tab->windowtext.size() *5+ 20),
 				Position.top + 21
 				));
 			tab->setPattern(getPatternManager());
-			endx += 1.5f;
+			endx += 1.f;
+			//tab->EventPosition = tab->Position;
+			if (iffirst)
+			{
+				cuievent ce;
+				ce.eventname = tabselected;
+				tab->HandleNotify(ce);
+				iffirst = false;
+			}
 			//pOwner->registerobserver(tab);
 		}
 	}
@@ -439,12 +441,83 @@ namespace cibbonui{
 		});
 		addevents(mousemovein, [this](cuievent* pe)->void
 		{
-			pe->eventname = mousemove;
 			notifyobservers(pe);
 		});
+		addevents(mousemoveout, [this](cuievent* pe)->void
+		{
+			notifyobservers(pe);
+		});
+		addevents(mousemove, [this](cuievent* pe)->void
+		{
+			notifyobservers(pe);
+		});
+	}//cuirect(Position.left,Position.top,endx,Position.top+21)
+	template<typename T>
+	void cuiFixedTabs<T>::HandleNotify(cuievent ce)
+	{
+		if (ce.eventname == controlinit) goto notify;
+		bool x(ifinrect(ce.eventposition, cuirect(Position.left, Position.top, endx, Position.top + 21)));
+		if (ce.eventname == mousemove)
+		{
+			if (!x&&!ifin) return;//如果原先没有在矩形中，现在依旧没有在，直接返回
+			/*if (x&&ifin)
+			{
+				for (int i = 0; i < Observers.size(); i++)
+				{
+					if (i == SelectedTabindex) continue;
+					Observers[i]->HandleNotify(ce);
+				}
+				Observers[SelectedTabindex]->HandleNotify(ce);
+				return;
+			}*/
+			if (ifin && !x)//如果原先在，现在不在，说明鼠标依旧离开了Tabs区域，则发送mousemoveout消息
+			{
+				ce.eventname = mousemoveout;
+				ifin = false;
+				notifyobservers(&ce);//先通知鼠标离开
+				ce.eventname = controlinit;
+				notifyobservers(&ce);
+				ifin = x;
+				return;
+			}
+			ifin = x;
+		}
+		else if (ce.eventname == mousemoveout)//如果鼠标不在窗口中，发送mousemoveout消息
+			ifin = false;
+		else
+			if (!x) return;
+		//至此mousemove消息处理完毕
+		//接着是lbuttondown消息的处理
+		if (ce.eventname == lbuttondown)
+		{
+			if (ifinrect(ce.eventposition, static_cast<cuiFixedTab*>(Observers[SelectedTabindex])->EventPosition))//如果在现在选中的Tab内，返回
+				return;
+			for (int i = 0; i != Observers.size(); i++)
+			{
+				if (ifinrect(ce.eventposition, static_cast<cuiFixedTab*>(Observers[i])->getPosition()))//如果在该矩形内，说明该选项卡已被选中
+					//现在说明选项卡的选项已经发生变化
+				{
+					ce.eventname = tabunselected;
+					Observers[SelectedTabindex]->HandleNotify(ce);
+					SelectedTabindex = i;
+					ce.eventname = tabselected;
+					Observers[SelectedTabindex]->HandleNotify(ce);
+					//现在，我们跳出循环，在这之前，将选中Tab优先级设置为最低
+					std::swap(Observers[SelectedTabindex], Observers[Observers.size()-1]);
+					break;
+				}
+				/*std::swap(Observers[SelectedTabindex], Observers[2]);
+				SelectedTabindex = 2;*/
+			}
+			ce.eventname = controlinit;
+			notifyobservers(&ce);
+			return;
+		}
+		
+	notify:
+		
+		HandleHelper(ce);
 	}
-
-
 
 	//template<typename T>
 	//void cuiFixedTabs<T>::HandleNotify(cuievent* pceb)//cuiFixedTabs是一个中转站
@@ -460,8 +533,10 @@ namespace cibbonui{
 		void drawusual(cibboncontrolbase* pControl);
 		void drawmove(cibboncontrolbase* pControl);
 		void drawdown(cibboncontrolbase* pControl);
+		void drawselected(cuiFixedTab* pTab);
 		void initdraw(cibboncontrolbase* pControl);
 		void drawclear(cibboncontrolbase* pControl);
+		void clearBack(cibboncontrolbase* pTab);
 		virtual ~TabPattern() = default;
 
 

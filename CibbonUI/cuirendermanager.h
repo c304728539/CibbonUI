@@ -7,7 +7,7 @@ namespace cibbonui{
 	template<typename P, typename R>
 	inline bool ifinrect(P Point, R Rect)
 	{
-		return Point.x > Rect.left && Point.x < Rect.right && Point.y > Rect.top && Point.y < Rect.bottom;
+		return Point.x >= Rect.left && Point.x < Rect.right && Point.y >= Rect.top && Point.y < Rect.bottom;
 	}
 	struct cuirect
 	{
@@ -65,7 +65,14 @@ namespace cibbonui{
 		{
 			return !(r1 == r2);
 		}
-		
+		cuirect movedown(float yoff)
+		{
+			return cuirect(left, top + yoff, right, bottom + yoff);
+		}
+		cuirect zoomforTab(float y1,float y2)
+		{
+			return cuirect(left + y1, top, right - y2, bottom);
+		}
 
 	};
 

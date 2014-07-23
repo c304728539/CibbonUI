@@ -50,7 +50,9 @@ namespace cibbonui
 		rbuttondown,
 		rbuttonup,
 		lbuttondoubleclick,
-		rightbuttonclick
+		rightbuttonclick,
+		tabselected,
+		tabunselected
 
 	};
 
