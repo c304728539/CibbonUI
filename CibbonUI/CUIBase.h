@@ -1,5 +1,9 @@
 #pragma once
 #include <d2d1.h>
+#include <algorithm>
+#include <windowsx.h>
+#include <dwmapi.h>
+#pragma comment(lib,"Dwmapi.lib")
 
 namespace cibbonui
 {
@@ -38,6 +42,7 @@ namespace cibbonui
 		cuiRect();
 		cuiRect(const cuiPoint& leftcorner, const cuiPoint& rightcorner);
 		cuiRect(const cuiRect& cr);
+		cuiRect(const RECT& rc);
 		//Move semantics
 		cuiRect(cuiRect&& cr);
 		//type casting

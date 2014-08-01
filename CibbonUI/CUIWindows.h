@@ -58,11 +58,12 @@ namespace cibbonui
 	{
 	public:
 		WndClass(
-			std::wstring _name,
+			const std::wstring& _name,
 			bool shadow,
 			WNDPROC WndProc,
 			HINSTANCE hInst
 			);
+		WndClass();
 		std::wstring getClassName() const;
 		void RegisterWindow();
 	private:
@@ -74,7 +75,7 @@ namespace cibbonui
 	class WindowCreator
 	{
 	public:
-		WindowCreator(const std::wstring& ClassName,std::wstring Title);
+		WindowCreator(const std::wstring& ClassName,const std::wstring& Title);
 		void SetExStyle(DWORD _ExStyle);
 		void SetWidth(cint _width);
 		void SetHeight(cint _Height);
@@ -97,8 +98,11 @@ namespace cibbonui
 	class MessageHandler : public Subject
 	{
 	public:
-		virtual bool MessageHandlerWndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam) = 0;
+		const bool Already = true;
+		const bool NotYet = false;
+		virtual bool MessageHandlerWndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam,LRESULT& lre) = 0;
 		MessageHandler(CUIWindowBase* pWindow);
+		virtual ~MessageHandler() = default;
 	protected:
 		CUIWindowBase* pOwnerWindow;
 	};
@@ -107,10 +111,15 @@ namespace cibbonui
 	{
 	public:
 		MainWindowMessageHandler(CUIWindowBase* pOwnerWindow);
+		bool MessageHandlerWndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre) override;
+	   
+	private:
+		LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
+	
 	};
 
 
-
+	LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
 	class CUIWindowBase
 	{
 	public:
@@ -119,6 +128,14 @@ namespace cibbonui
 		virtual ~CUIWindowBase();
 		void Initialize();
 		virtual void Run() = 0;
+		virtual void SetThings() = 0;
+		bool HandleMessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre);
+		cuiRect GetWindowRect();
+		/*virtual void RegisterWindow(std::wstring _name,
+			bool shadow,
+			WNDPROC WndProc,
+			HINSTANCE hInst) = 0;
+		virtual void CreateInit(const std::wstring& ClassName, std::wstring Title) = 0;*/
 	protected:
 
 		WndClass* pWndClass;
@@ -128,7 +145,7 @@ namespace cibbonui
 		HWND WindowHandle;
 
 		virtual void CreateInitors() = 0;
-		static LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
+		
 	};
 
 	class CUIMainWindow :public CUIWindowBase
@@ -139,6 +156,7 @@ namespace cibbonui
 		void Run() override;
 		void RunMessageLoop();
 		
+		void SetThings() override;
 	protected:
 
 		virtual void CreateInitors() override;

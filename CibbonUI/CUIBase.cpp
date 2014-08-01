@@ -80,6 +80,14 @@ namespace cibbonui{
 
 	}
 
+	cuiRect::cuiRect(const RECT& rc)
+		:left(rc.left),
+		top(rc.top),
+		right(rc.right),
+		bottom(rc.bottom)
+	{
+	}
+
 	cuiRect::cuiRect(cuiRect&& cr)
 		: left(cr.left), top(cr.top), right(cr.right), bottom(cr.bottom)
 	{
