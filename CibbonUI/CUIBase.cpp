@@ -116,7 +116,17 @@ namespace cibbonui{
 
 	float cuiRect::getSize()
 	{
-		return (right - left) * (bottom - top);
+		return GetWidth() * GetHeight();
+	}
+
+	float cuiRect::GetWidth()
+	{
+		return right - left;
+	}
+
+	float cuiRect::GetHeight()
+	{
+		return bottom - top;
 	}
 
 	bool operator ==(const cuiRect& r1, const cuiRect& r2)

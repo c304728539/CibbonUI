@@ -1,8 +1,14 @@
 #pragma once
 #include <d2d1.h>
+#include <dwrite.h>
 #include <algorithm>
 #include <windowsx.h>
 #include <dwmapi.h>
+#include <exception>
+#include <memory>
+#include <map>
+#include <unordered_map>
+#include <d2d1helper.h>
 #pragma comment(lib,"Dwmapi.lib")
 
 namespace cibbonui
@@ -51,6 +57,8 @@ namespace cibbonui
 		operator RECT() const;
 		//helper functions
 		cuiRect getMargin(float x, float y);
+		float GetWidth();
+		float GetHeight();
 		float getSize();
 		
 	};

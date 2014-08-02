@@ -130,12 +130,14 @@ namespace cibbonui
 		virtual void Run() = 0;
 		virtual void SetThings() = 0;
 		bool HandleMessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre);
-		cuiRect GetWindowRect();
+		cuiRect GetWindowRect() const;
+		cuiRect GetClientRect() const;
 		/*virtual void RegisterWindow(std::wstring _name,
 			bool shadow,
 			WNDPROC WndProc,
 			HINSTANCE hInst) = 0;
 		virtual void CreateInit(const std::wstring& ClassName, std::wstring Title) = 0;*/
+		HWND GetWindowHandle() const;
 	protected:
 
 		WndClass* pWndClass;
@@ -160,6 +162,62 @@ namespace cibbonui
 	protected:
 
 		virtual void CreateInitors() override;
+	};
+
+
+	/*Render APIs*/
+	template<class Interface>
+	inline void Free(Interface* & ppInterfaceToRelease)
+	{
+		if (ppInterfaceToRelease != nullptr)
+		{
+			ppInterfaceToRelease->Release();
+			ppInterfaceToRelease = nullptr;
+		}
+	}
+
+	class FactoriesCreator
+	{
+	public:
+		const cint NormalFontSize = 12;
+		ID2D1Factory* GetpD2DFactory() const;
+		IDWriteFactory* GetpDwFactory() const;
+		IDWriteTextFormat* GetpNormalTextFormat();
+		static const std::unique_ptr<FactoriesCreator>& GetFactoriesCreator() ;
+		~FactoriesCreator();
+	private:
+		static std::unique_ptr<FactoriesCreator> pFactoriesCreator;
+		FactoriesCreator();
+		mutable ID2D1Factory* pD2DFactory;
+		mutable IDWriteFactory* pDwFactory;
+		mutable IDWriteTextFormat* pNormalTextFormat;
+	};
+
+	class RenderManager
+	{
+	public:
+		static const std::unique_ptr<RenderManager>& GetpRenderManager(CUIWindowBase* p);
+		~RenderManager();
+
+		void DrawBorder(const cuiRect& rect, cint BorderColor, float LineWidth);
+		void NormalFillRect(const cuiRect& rect, cint FillColor);
+		void LinearFillRect(const cuiRect& rect, cint FillColor1, cint FillColor2);
+		void RenderText(const std::wstring& Content, const std::wstring& FontName, cint FontSize, const cuiRect& Area);
+		void RenderText(const std::wstring& Content , const cuiRect& Area,cint TextColor);
+		std::pair<float,float> CalTextSize();
+	private:
+		RenderManager(CUIWindowBase* p);
+
+		ID2D1HwndRenderTarget* pRT;
+		ID2D1Factory* pD2DFactory;
+		IDWriteFactory* pDwFactory;
+		static std::map<CUIWindowBase*, std::unique_ptr<RenderManager>> RenderManagerMap;
+		std::unordered_map<cint, ID2D1SolidColorBrush*> SolidBrushMap;
+		std::unordered_map<std::pair<cint, cint>, ID2D1LinearGradientBrush*> LinearBrushMap;
+		ID2D1SolidColorBrush* GetBrush(cint BrushColor);
+		
+		ID2D1LinearGradientBrush* GetBrush(cint BrushColor1, cint BrushColor2, cuiRect _rect);
+		IDWriteTextFormat* pNormalTextFormat;
 	};
 
 
