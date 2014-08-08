@@ -15,7 +15,7 @@ namespace cibbonui
 		auto it = std::find(Observerlist.cbegin(),
 			Observerlist.cend(),
 			o);
-		if (it != Observerlist.end()) Observerlist.push_back(o);
+		if (it == Observerlist.end()) Observerlist.push_back(o);
 	}
 
 	void Subject::RemoveObserver(Observer* o)
@@ -26,6 +26,122 @@ namespace cibbonui
 		if (it != Observerlist.end()) Observerlist.erase(it);
 	}
 
+	Context::Context(CUIWindowBase* p)
+		:pWindow(p)
+	{
+
+	}
+
+	void Leaf::Add(Component* p)
+	{
+		return;
+	}
+
+	void Leaf::Remove(Component* p)
+	{
+		return;
+	}
+
+	const Component* Leaf::GetComposite() const
+	{
+		return nullptr;
+	}
+
+	//cuiRect Component::GetEventPosition() const
+	//{
+	//	return cuiRect();
+	//}
+
+	/*void Component::SetRoot(Composite* p)
+	{
+		pRoot = p;
+	}*/
+
+	void Composite::Add(Component* p)
+	{
+		auto it = std::find(Leaves.cbegin(),
+			Leaves.cend(),
+			p);
+		if (it == Leaves.end()) Leaves.push_back(p);
+	}
+
+
+	void Composite::Remove(Component* p)
+	{
+		auto it = std::find(Leaves.cbegin(),
+			Leaves.cend(),
+			p);
+		if (it != Leaves.end()) Leaves.erase(it);
+	}
+	const Component* Composite::GetComposite() const
+	{
+		return this;
+	}
+	void Canvas::Draw(Context* p)
+	{
+		for (auto pl : Leaves)
+		{
+			p->Position = pl->GetEventPosition();
+			pl->Draw(p);
+		}
+	}
+
+	void Canvas::Add(Component* p, const cuiRect& rc)
+	{
+		p->SetPosition(rc);
+		RegisterObserver(dynamic_cast<Observer*>(p));
+		this->Composite::Add(p);
+	}
+	void Canvas::SetPosition(const cuiRect& cr)
+	{
+		Position = cr;
+	}
+
+	void Canvas::LeftButtonDown(MouseEventArgs mea)
+	{
+		for (auto p : Observerlist)
+		{
+			p->LeftButtonDown(mea);
+		}
+	}
+	void Canvas::LeftButtonUp(MouseEventArgs mea)
+	{
+		for (auto p : Observerlist)
+		{
+			p->LeftButtonUp(mea);
+		}
+	}
+
+	void Canvas::RightButtonDown(MouseEventArgs mea)
+	{
+		for (auto p : Observerlist)
+		{
+			p->RightButtonDown(mea);
+		}
+	}
+
+	void Canvas::RightButtonUp(MouseEventArgs mea)
+	{
+		for (auto p : Observerlist)
+		{
+			p->RightButtonUp(mea);
+		}
+	}
+	void Canvas::MouseMove(MouseEventArgs mea)
+	{
+		for (auto p : Observerlist)
+		{
+			p->MouseMove(mea);
+		}
+	}
+	
+	void Canvas::SetRoot(CUIWindowBase* p)
+	{
+		for (auto pl : Leaves)
+		{
+			pl->SetRoot(p);
+		}
+	}
 
 	WndClass::WndClass(const std::wstring& _name,
 		bool shadow,
@@ -119,21 +235,33 @@ namespace cibbonui
 	}
 
 	MessageHandler::MessageHandler(CUIWindowBase* pWindow)
-		:pOwnerWindow(pWindow)
+		:pOwnerWindow(pWindow),
+		pContext(new Context(pWindow))
 	{
 
 	}
 
+	MessageHandler::~MessageHandler()
+	{
+		delete pContext;
+		pContext = nullptr;
+	}
 	MainWindowMessageHandler::MainWindowMessageHandler(CUIWindowBase* p)
-		: MessageHandler(p)
+		: MessageHandler(p),
+		pContainer(nullptr)
 	{
 
 	}
- 
+    
+	void MainWindowMessageHandler::SetContainer(Container* p)
+	{
+		pContainer = p;
+	}
+	
 	bool MainWindowMessageHandler::MessageHandlerWndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre)
 	{
 		static bool HasFirstSized = false;
-		if (Message == WM_NCHITTEST)
+		/*if (Message == WM_NCHITTEST)
 		{
 			if (::DwmDefWindowProc(hWnd, Message, wParam, lParam, &lre))
 			{
@@ -144,7 +272,7 @@ namespace cibbonui
 				lre = HitTestNCA(hWnd, wParam, lParam);
 			}
 			return Already;
-		}
+		}*/
 
 
 		if ((Message == WM_NCCALCSIZE) && (wParam == TRUE))
@@ -164,6 +292,7 @@ namespace cibbonui
 			break;
 		case WM_SIZE:
 		{
+			pOwnerWindow->GetpRenderManager()->Resize(LOWORD(lParam), HIWORD(lParam));
 			if (!HasFirstSized)
 			{
 				RECT rect;
@@ -173,6 +302,28 @@ namespace cibbonui
 				HasFirstSized = true;
 			}
 			
+			break;
+		}
+		case WM_PAINT:
+		{
+			pContext->Position = pOwnerWindow->GetClientRect();
+			dynamic_cast<CUIMainWindow*>(pOwnerWindow)->Draw(pContext);
+			break;
+		}
+		case WM_LBUTTONDOWN:
+		{
+			MouseEventArgs mea;
+			mea.EventPosition = cuiPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			mea.Sender = pContainer;
+			pContainer->LeftButtonDown(mea);
+			break;
+		}
+		case WM_MOUSEMOVE:
+		{
+			MouseEventArgs mea;
+			mea.EventPosition = cuiPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			mea.Sender = pContainer;
+			pContainer->MouseMove(mea);
 			break;
 		}
 		default:
@@ -224,7 +375,7 @@ namespace cibbonui
 		pWndClass(nullptr),
 		pWindowCreator(nullptr),
 		WindowHandle(0),
-		pHandler(nullptr)
+		pRenderManager(nullptr)
 	{
 
 	}
@@ -233,7 +384,6 @@ namespace cibbonui
 	{
 		delete pWndClass;
 		delete pWindowCreator;
-		delete pHandler;
 	}
 
 	void CUIWindowBase::Initialize()
@@ -241,6 +391,7 @@ namespace cibbonui
 		//Set things Here
 		SetThings();
 		WindowHandle = pWindowCreator->Create();
+		pRenderManager = RenderManager::GetpRenderManager(this);
 		if (!WindowHandle) throw  std::exception("Sorry");
 	}
 
@@ -249,8 +400,26 @@ namespace cibbonui
 		return WindowHandle;
 	}
 
+	void CUIWindowBase::ReDraw() const
+	{
+		::SendMessage(WindowHandle, WM_PAINT, 0, 0);
+	}
+	std::shared_ptr<RenderManager> CUIWindowBase::GetpRenderManager() const
+	{
+		return pRenderManager;
+	}
+
+	/*Template Methord*/
+	void CUIWindowBase::Run()
+	{
+		CreateInitors();
+		Initialize();
+		RunMessageLoop();
+	}
+
 	CUIMainWindow::CUIMainWindow(const std::wstring& Title)
-		:CUIWindowBase(Title)
+		:CUIWindowBase(Title),
+		pMainWindowMessageHandler(new MainWindowMessageHandler(this))
 	{
 
 	}
@@ -260,16 +429,7 @@ namespace cibbonui
 	{
 		pWndClass = new WndClass(L"CUIMainWindow", true, WndProc, getInstance());
 		pWindowCreator = new WindowCreator(pWndClass->getClassName(), WindowTitle);
-		pHandler = new MainWindowMessageHandler(this);
-	}
-
-	void CUIMainWindow::Run()
-	{
-		CreateInitors();
-		Initialize();
-		ShowWindow(WindowHandle, SW_SHOWNORMAL);
-		UpdateWindow(WindowHandle);
-		RunMessageLoop();
+		//pMainWindowMessageHandler = new MainWindowMessageHandler(this);
 	}
 
 	void CUIMainWindow::SetThings()
@@ -279,6 +439,8 @@ namespace cibbonui
 
 	void CUIMainWindow::RunMessageLoop()
 	{
+		::ShowWindow(WindowHandle, SW_SHOWNORMAL);
+		::UpdateWindow(WindowHandle);
 		MSG msg{ 0 };
 		while (::GetMessage(&msg, NULL, 0, 0))
 		{
@@ -286,10 +448,20 @@ namespace cibbonui
 			::DispatchMessage(&msg);
 		}
 	}
-
-	bool CUIWindowBase::HandleMessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre)
+	void CUIMainWindow::SetContainer(Container* p)
 	{
-		return pHandler->MessageHandlerWndProc(hWnd, Message, wParam, lParam, lre);
+		pMainWindowMessageHandler->SetContainer(p);
+	}
+
+	bool CUIMainWindow::HandleMessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre)
+	{
+		return pMainWindowMessageHandler->MessageHandlerWndProc(hWnd, Message, wParam, lParam, lre);
+	}
+
+	CUIMainWindow::~CUIMainWindow()
+	{
+		delete pContainer;
+		delete pMainWindowMessageHandler;
 	}
 
 	cuiRect CUIWindowBase::GetWindowRect() const
@@ -306,6 +478,20 @@ namespace cibbonui
 		return cuiRect(rc);
 	}
 
+	void CUIMainWindow::Add(Container* p)
+	{
+		pContainer = p;
+		pMainWindowMessageHandler->SetContainer(p);
+		p->SetRoot(this);
+	}
+
+	void CUIMainWindow::Draw(Context* p)
+	{
+		pRenderManager->BeginRender();
+		pRenderManager->Clear(0xffffff);
+		pContainer->Draw(p);
+		pRenderManager->EndRender();
+	}
 
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	{
@@ -381,19 +567,23 @@ namespace cibbonui
 	IDWriteTextFormat* FactoriesCreator::GetpNormalTextFormat()
 	{
 		if (!pNormalTextFormat)
+		{
 			pDwFactory->CreateTextFormat(
-			L"Microsoft YaHei",
-			nullptr,
-			DWRITE_FONT_WEIGHT_NORMAL,
-			DWRITE_FONT_STYLE_NORMAL,
-			DWRITE_FONT_STRETCH_NORMAL,
-			NormalFontSize,
-			L"",
-			&pNormalTextFormat);
+				L"Microsoft YaHei",
+				nullptr,
+				DWRITE_FONT_WEIGHT_NORMAL,
+				DWRITE_FONT_STYLE_NORMAL,
+				DWRITE_FONT_STRETCH_NORMAL,
+				NormalFontSize,
+				L"",
+				&pNormalTextFormat);
+			pNormalTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+			pNormalTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+		}
 		return pNormalTextFormat;
 	}
 
-	std::map<CUIWindowBase*, std::unique_ptr<RenderManager>> RenderManager::RenderManagerMap;
+	std::map<CUIWindowBase*, std::shared_ptr<RenderManager>> RenderManager::RenderManagerMap;
 
 	RenderManager::RenderManager(CUIWindowBase* p)
 		:pD2DFactory(FactoriesCreator::GetFactoriesCreator()->GetpD2DFactory()),
@@ -412,12 +602,12 @@ namespace cibbonui
 		pRT->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 	}
 
-	const std::unique_ptr<RenderManager>& RenderManager::GetpRenderManager(CUIWindowBase* p)
+	std::shared_ptr<RenderManager> RenderManager::GetpRenderManager(CUIWindowBase* p)
 	{
 		auto it = RenderManager::RenderManagerMap.find(p);
 		if (it == RenderManager::RenderManagerMap.end())
 		{
-			RenderManager::RenderManagerMap[p] = std::unique_ptr<RenderManager>(new RenderManager(p));
+			RenderManager::RenderManagerMap[p] = std::shared_ptr<RenderManager>(new RenderManager(p));
 		}
 		return RenderManager::RenderManagerMap[p];
 	}
@@ -435,6 +625,20 @@ namespace cibbonui
 		}
 	}
 
+	void RenderManager::BeginRender()
+	{
+		pRT->BeginDraw();
+	}
+
+	void RenderManager::EndRender()
+	{
+		pRT->EndDraw();
+	}
+
+	void RenderManager::Clear(cint ClearColor)
+	{
+		pRT->Clear(D2D1::ColorF(ClearColor));
+	}
 	void RenderManager::DrawBorder(const cuiRect& rect, cint BorderColor, float LineWidth)
 	{
 		pRT->DrawRectangle(rect, GetBrush(BorderColor), LineWidth);
@@ -499,4 +703,346 @@ namespace cibbonui
 			);
 	}
 
+	void RenderManager::RenderText(const std::wstring& Content, const std::wstring& FontName, cint FontSize, const cuiRect& Area, DwriteTextAlignment dta, DwriteParagraphAlignment dpa,cint TextColor)
+	{
+		auto pTextFormat = GetpTextFormat(FontSize, FontName, dta, dpa);
+		pRT->DrawTextW(
+			Content.c_str(),
+			Content.size(),
+			pTextFormat,
+			Area,
+			GetBrush(TextColor),
+			D2D1_DRAW_TEXT_OPTIONS_CLIP
+			);
+		pTextFormat->Release();
+	}
+
+	IDWriteTextFormat* RenderManager::GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment dta, DwriteParagraphAlignment dpa)
+	{
+		IDWriteTextFormat* pFormat = nullptr;
+		pDwFactory->CreateTextFormat(
+			FontName.c_str(),
+			nullptr,
+			DWRITE_FONT_WEIGHT_NORMAL,
+			DWRITE_FONT_STYLE_NORMAL,
+			DWRITE_FONT_STRETCH_NORMAL,
+			FontSize,
+			L"",
+			&pFormat);
+		return pFormat;
+	}
+
+	void RenderManager::Resize(cint x, cint y)
+	{
+		pRT->Resize(D2D1::SizeU(x, y));
+	}
+
+
+	CUIControl::CUIControl()
+		:pOwnerWindow(nullptr),
+		Observer(),
+		Composite()
+	{
+
+	}
+	
+	void CUIControl::Update()
+	{
+		pOwnerWindow->ReDraw();
+	}
+
+
+	void CUIControl::SetpOwnerWindow(CUIWindowBase* p)
+	{
+		pOwnerWindow = p;
+	}
+
+	ButtonEventHandler::ButtonEventHandler(Win8Button* _pButton)
+		:pButton(_pButton)
+		//Position(_Position)
+	{
+
+	}
+
+	void ButtonEventHandler::SetPosition(const cuiRect& pos)
+	{
+		Position = pos;
+	}
+
+	void ButtonEventHandler::LeftButtonDown(MouseEventArgs mea)
+	{
+		if (PtinRect(mea.EventPosition, Position))
+		{
+			pButton->SetState(Click);
+			pButton->Update();
+		}
+	}
+
+	void ButtonEventHandler::LeftButtonUp(MouseEventArgs mea)
+	{
+		if (pButton->GetState() == Statesenum::Click)
+		{
+			pButton->SetState(Normal);
+			pButton->Update();
+		}
+	}
+
+	void ButtonEventHandler::MouseMove(MouseEventArgs mea)
+	{
+		Statesenum TempState;
+		PtinRect(mea.EventPosition, Position) ? TempState = MoveOn : TempState = Normal;
+		if (TempState != pButton->GetState())
+		{
+			pButton->SetState(TempState);
+			pButton->Update();
+		}
+		
+	}
+
+	void ButtonEventHandler::RightButtonDown(MouseEventArgs)
+	{
+		return;
+	}
+
+	void ButtonEventHandler::RightButtonUp(MouseEventArgs)
+	{
+		return;
+	}
+
+	cuiRect ButtonEventHandler::GetPosition() const
+	{
+		return Position;
+	}
+
+	Win8Button::Win8Button(const std::wstring& _ButtonContent)
+		:pEventHandler(new ButtonEventHandler(this)),
+		pNormalButtonFactory(new NormalButtonCompositeFactory),
+		pMoveOnButtonFactory(new MoveOnButtonCompositeFactory),
+		pClickButtonFactory(new ClickButtonCompositeFactory),
+		pNowButtonFactory(pNormalButtonFactory),
+		ButtonContent(_ButtonContent),
+		CUIControl(),
+		ButtonState(Normal)
+	{
+
+	}
+
+	/*  Delegate  */
+	void Win8Button::LeftButtonDown(MouseEventArgs mea)
+	{
+		pEventHandler->LeftButtonDown(mea);
+	}
+
+	void Win8Button::LeftButtonUp(MouseEventArgs mea)
+	{
+		pEventHandler->LeftButtonUp(mea);
+	}
+
+	void Win8Button::RightButtonDown(MouseEventArgs mea)
+	{
+		pEventHandler->RightButtonDown(mea);
+	}
+
+	void Win8Button::RightButtonUp(MouseEventArgs mea)
+	{
+		pEventHandler->RightButtonUp(mea);
+	}
+
+	void Win8Button::MouseMove(MouseEventArgs mea)
+	{
+		pEventHandler->MouseMove(mea);
+	}
+
+	Win8Button::~Win8Button()
+	{
+		delete pEventHandler;
+	}
+
+	void Win8Button::SetPosition(const cuiRect& cr)
+	{
+		pEventHandler->SetPosition(cr);
+	}
+
+	Statesenum Win8Button::GetState()
+	{
+		return ButtonState;
+	}
+
+	void Win8Button::SetState(Statesenum _state)
+	{
+		ButtonState = _state;
+	}
+
+	void Win8Button::Update()
+	{
+		switch (ButtonState)
+		{
+		case cibbonui::Click:
+			pNowButtonFactory = pClickButtonFactory;
+			break;
+		case cibbonui::MoveOn:
+			pNowButtonFactory = pMoveOnButtonFactory;
+			break;
+		case cibbonui::Normal:
+			pNowButtonFactory = pNormalButtonFactory;
+			break;
+		case cibbonui::Disabled:
+			break;
+		default:
+			break;
+		}
+		this->CUIControl::Update();
+	}
+
+	void Win8Button::Draw(Context* p)
+	{
+		pNowButtonFactory->CreateBorder()->Draw(p);
+		pNowButtonFactory->CreateInside()->Draw(p);
+		pNowButtonFactory->CreateContent(ButtonContent)->Draw(p);
+	}
+
+	cuiRect Win8Button::GetEventPosition() const
+	{
+		return pEventHandler->GetPosition();
+	}
+	/*------ButtonComposites-----*/
+	/*Factory or Class itself ?*/
+
+	Border::Border(cint _BorderColor, float _BorderWidth)
+		:BorderColor( _BorderColor ),
+		BorderWidth( _BorderWidth )
+	{
+
+	}
+
+
+	void Border::Draw(Context* p)
+	{
+		p->pWindow->GetpRenderManager()->DrawBorder(p->Position.getMargin(1.f,1.f), BorderColor, BorderWidth);
+	}
+
+	Inside::Inside(cint color1, cint color2)
+		:InsideColor1(color1),
+		InsideColor2(color2)
+	{
+
+	}
+
+	void Inside::Draw(Context* p)
+	{
+		p->pWindow->GetpRenderManager()->LinearFillRect(p->Position, InsideColor1, InsideColor2);
+	}
+
+
+	Content::Content(const std::wstring& _text)
+		:ContentString(_text)
+	{
+
+	}
+
+	void Content::Draw(Context* p)
+	{
+		p->pWindow->GetpRenderManager()->RenderText(ContentString, p->Position,0);
+	}
+
+	const std::wstring& Content::GetContent() const
+	{
+		return ContentString;
+	}
+
+	/* ButtonFactories */
+
+	ButtonCompositeFactory::ButtonCompositeFactory()
+		:pBorder(nullptr),
+		pInside(nullptr),
+		pContent(nullptr)
+	{
+
+	}
+
+	ButtonCompositeFactory::~ButtonCompositeFactory()
+	{
+		delete pBorder;
+		delete pInside;
+		delete pContent;
+		pBorder = nullptr;
+		pInside = nullptr;
+		pContent = nullptr;
+	}
+
+	Border* NormalButtonCompositeFactory::CreateBorder()
+	{
+		if (!pBorder)
+			pBorder = new Border(0xacacac);
+		return pBorder;
+	}
+
+
+	Inside* NormalButtonCompositeFactory::CreateInside()
+	{
+		if (!pInside)
+			pInside = new Inside(0xf0f0f0, 0xe5e5e5);
+		return pInside;
+	}
+
+	Content* NormalButtonCompositeFactory::CreateContent(const std::wstring& _text)
+	{
+		if (!pContent || pContent->GetContent() != _text)
+		{
+			delete pContent;
+			pContent = new Content(_text);
+		}
+		return pContent;
+	}
+
+
+	Border* MoveOnButtonCompositeFactory::CreateBorder()
+	{
+		if (!pBorder)
+			pBorder = new Border(0x7eb4ea);
+		return pBorder;
+	}
+
+
+	Inside* MoveOnButtonCompositeFactory::CreateInside()
+	{
+		if (!pInside)
+			pInside = new Inside(0xebf4fc, 0xdcecfc);
+		return pInside;
+	}
+
+	Content* MoveOnButtonCompositeFactory::CreateContent(const std::wstring& _text)
+	{
+		if (!pContent || pContent->GetContent() != _text)
+		{
+			delete pContent;
+			pContent = new Content(_text);
+		}
+		return pContent;
+	}
+
+	Border* ClickButtonCompositeFactory::CreateBorder()
+	{
+		if (!pBorder)
+			pBorder = new Border(0x7eb4ea);
+		return pBorder;
+	}
+
+
+	Inside* ClickButtonCompositeFactory::CreateInside()
+	{
+		if (!pInside)
+			pInside = new Inside(0xebf4fc, 0xdcecfc);
+		return pInside;
+	}
+
+	Content* ClickButtonCompositeFactory::CreateContent(const std::wstring& _text)
+	{
+		if (!pContent || pContent->GetContent() != _text)
+		{
+			delete pContent;
+			pContent = new Content(_text);
+		}
+		return pContent;
+	}
 }

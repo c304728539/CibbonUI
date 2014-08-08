@@ -10,6 +10,22 @@
 #include <unordered_map>
 #include <d2d1helper.h>
 #pragma comment(lib,"Dwmapi.lib")
+#pragma comment(lib,"d2d1.lib")
+#pragma comment(lib,"dwrite.lib")
+
+namespace std
+{
+	template<>
+	struct hash<pair<int,int>>
+	{	
+		size_t operator() (const std::pair<int, int>& p) const
+		{
+			return hash<int>()(p.first);
+		}
+		// hash functor for std::pair<int,int>
+	};
+}
+
 
 namespace cibbonui
 {
