@@ -12,6 +12,16 @@ namespace cibbonui
 	class FactoriesCreator;
 	class Win8Button;
 	class ButtonCompositeFactory;
+	class ButtonFactoriesCreator;
+	class Button;
+	class ButtonBorderFactory;
+	class ButtonInsideFactory;
+	class ButtonContentFactory;
+	class Caption;
+	class MessageHandler;
+	class Controller;
+	class WindowContent;
+
 	struct EventArgs
 	{
 		Subject* Sender;//The Window Maybe..
@@ -59,14 +69,7 @@ namespace cibbonui
 		Context(CUIWindowBase* p);
 		cuiRect Position;
 		CUIWindowBase* pWindow;
-		virtual ~Context() = default;
-	};
-
-	class TextContext:public Context
-	{
-	public:
-		cint TextColor;
-		//Others ?
+		Composite* pParent;
 	};
 
 	class Component
@@ -75,7 +78,7 @@ namespace cibbonui
 		virtual void Draw(Context* p) = 0;
 		virtual void Add(Component* p) = 0;
 		virtual void Remove(Component* p) = 0;
-		virtual cuiRect GetEventPosition() const
+		virtual cuiRect GetPosition() const
 		{
 			return cuiRect();
 		}
@@ -119,10 +122,17 @@ namespace cibbonui
 		std::vector<Component*> Leaves;
 	};
 
-	class Container : public Composite ,public Subject,public Observer
+	class Container : public Composite 
 	{
 	public:
-		virtual ~Container() = default;
+		virtual void ReSize(const cuiRect& _size) = 0;
+		virtual ~Container()
+		{
+			for (auto p : Leaves)
+			{
+				delete p;
+			}
+		}
 	};
 
 	class Canvas :public Container
@@ -132,11 +142,7 @@ namespace cibbonui
 		void Add(Component* p, const cuiRect& cr);
 		void SetRoot(CUIWindowBase* p);
 		void SetPosition(const cuiRect& cr) override;
-		virtual void LeftButtonDown(MouseEventArgs mea) override;
-		virtual void LeftButtonUp(MouseEventArgs mea) override;
-		virtual void RightButtonDown(MouseEventArgs mea) override;
-		virtual void RightButtonUp(MouseEventArgs mea) override;
-		virtual void MouseMove(MouseEventArgs mea) override;
+		void ReSize(const cuiRect& _size) override;
 	private:
 		cuiRect Position;
 	};
@@ -203,6 +209,7 @@ namespace cibbonui
 	protected:
 		CUIWindowBase* pOwnerWindow;
 		Context* pContext;
+		std::shared_ptr<Controller> pController;
 	};
 
 	class MainWindowMessageHandler : public MessageHandler
@@ -215,8 +222,21 @@ namespace cibbonui
 	private:
 		LRESULT HitTestNCA(HWND hWnd, WPARAM wParam, LPARAM lParam);
 		Container* pContainer;
+		HANDLE hRenderThread;
+		bool Tracked;
+	};
+	class Controller : public Subject
+	{
+		friend class MainWindowMessageHandler;
+	public:
+		
+		static std::shared_ptr<Controller> GetpController();
+	private:
+		Controller();
+		static std::shared_ptr<Controller> pController;
 	};
 
+	unsigned int __stdcall RenderThreadFunc(void* p);
 
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam);
 	class CUIWindowBase
@@ -229,9 +249,15 @@ namespace cibbonui
 		void Run();
 		virtual void SetThings() = 0;
 		virtual void RunMessageLoop() = 0;
-		
+		const std::wstring& GetControlText() const
+		{
+			return	WindowTitle;
+		}
 		cuiRect GetWindowRect() const;
 		cuiRect GetClientRect() const;
+		virtual void ReSize(USHORT x, USHORT y)
+		{};
+		virtual void Draw(Context* p){};
 		/*virtual void RegisterWindow(std::wstring _name,
 			bool shadow,
 			WNDPROC WndProc,
@@ -244,7 +270,6 @@ namespace cibbonui
 
 		WndClass* pWndClass;
 		WindowCreator* pWindowCreator;
-		//MessageHandler* pHandler;
 		std::wstring WindowTitle;
 		HWND WindowHandle;
 		std::shared_ptr<RenderManager> pRenderManager;
@@ -256,7 +281,10 @@ namespace cibbonui
 	class CUIMainWindow :public CUIWindowBase
 	{
 	public:
-
+		enum
+		{
+			CaptionHeight = 20
+		};
 		CUIMainWindow(const std::wstring& Title);
 		//void Run() override;
 		bool HandleMessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre);
@@ -265,6 +293,8 @@ namespace cibbonui
 		void SetThings() override;
 		void Draw(Context* p);
 		void Add(Container* p);
+		void ReSize(USHORT x1, USHORT x2);
+		
 		virtual ~CUIMainWindow();
 	protected:
 
@@ -272,6 +302,9 @@ namespace cibbonui
 	private:
 		Container* pContainer;
 		MainWindowMessageHandler* pMainWindowMessageHandler;
+		Caption* pCaption;
+		bool HasFirstSized;
+		
 	};
 
 
@@ -285,7 +318,17 @@ namespace cibbonui
 			ppInterfaceToRelease = nullptr;
 		}
 	}
+	using DwriteTextAlignment = DWRITE_TEXT_ALIGNMENT;
 
+	const DwriteTextAlignment TextAlignmentCenter = DWRITE_TEXT_ALIGNMENT_CENTER;
+	const DwriteTextAlignment TextAlignmentLeft = DWRITE_TEXT_ALIGNMENT_LEADING;
+	const DwriteTextAlignment TextAlignmentRight = DWRITE_TEXT_ALIGNMENT_TRAILING;
+
+	using DwriteParagraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT;
+
+	const DwriteParagraphAlignment ParagraphAlignmentTop = DWRITE_PARAGRAPH_ALIGNMENT_NEAR;
+	const DwriteParagraphAlignment ParagraphAlignmentCenter = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
+	const DwriteParagraphAlignment ParagraphAlignmentBottom = DWRITE_PARAGRAPH_ALIGNMENT_FAR;
 	class FactoriesCreator
 	{
 	public:
@@ -295,6 +338,7 @@ namespace cibbonui
 		IDWriteTextFormat* GetpNormalTextFormat();
 		static const std::unique_ptr<FactoriesCreator>& GetFactoriesCreator() ;
 		~FactoriesCreator();
+		IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter);
 	private:
 		static std::unique_ptr<FactoriesCreator> pFactoriesCreator;
 		FactoriesCreator();
@@ -302,21 +346,11 @@ namespace cibbonui
 		mutable IDWriteFactory* pDwFactory;
 		mutable IDWriteTextFormat* pNormalTextFormat;
 	};
-
+	
 	class RenderManager
 	{
 	public:
-		using DwriteTextAlignment = DWRITE_TEXT_ALIGNMENT;
-
-		const DwriteTextAlignment TextAlignmentCenter = DWRITE_TEXT_ALIGNMENT_CENTER;
-		const DwriteTextAlignment TextAlignmentLeft = DWRITE_TEXT_ALIGNMENT_LEADING;
-		const DwriteTextAlignment TextAlignmentRight = DWRITE_TEXT_ALIGNMENT_TRAILING;
-
-		using DwriteParagraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT;
-
-		const DwriteParagraphAlignment ParagraphAlignmentTop = DWRITE_PARAGRAPH_ALIGNMENT_NEAR;
-		const DwriteParagraphAlignment ParagraphAlignmentCenter = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
-		const DwriteParagraphAlignment ParagraphAlignmentBottom = DWRITE_PARAGRAPH_ALIGNMENT_FAR;
+		
 
 		static std::shared_ptr<RenderManager> GetpRenderManager(CUIWindowBase* p);
 		~RenderManager();
@@ -330,6 +364,9 @@ namespace cibbonui
 		void LinearFillRect(const cuiRect& rect, cint FillColor1, cint FillColor2);
 		void RenderText(const std::wstring& Content, const std::wstring& FontName, cint FontSize, const cuiRect& Area, DwriteTextAlignment, DwriteParagraphAlignment,cint TextColor);
 		void RenderText(const std::wstring& Content , const cuiRect& Area,cint TextColor);
+		void RenderText(const std::wstring& Content, const cuiRect& Area,cint TextColor,IDWriteTextFormat* pFormat);
+		
+		
 		std::pair<float,float> CalTextSize();
 	private:
 		RenderManager(CUIWindowBase* p);
@@ -345,18 +382,27 @@ namespace cibbonui
 		ID2D1LinearGradientBrush* GetBrush(cint BrushColor1, cint BrushColor2, cuiRect _rect);
 		IDWriteTextFormat* pNormalTextFormat;
 
-		IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment, DwriteParagraphAlignment);
+		//IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment, DwriteParagraphAlignment);
 	};
 
+
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   EventHandler                                  *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
 	class EventHandler
 	{
 	public:
-		//EventHandler(CUIControl* pControl);
 		virtual void LeftButtonDown(MouseEventArgs mea) = 0;
 		virtual void LeftButtonUp(MouseEventArgs mea) = 0;
 		virtual void RightButtonDown(MouseEventArgs mea) = 0;
 		virtual void RightButtonUp(MouseEventArgs mea) = 0;
 		virtual void MouseMove(MouseEventArgs mea) = 0;
+		virtual ~EventHandler() = default;
 	protected:
 		
 	};
@@ -365,7 +411,258 @@ namespace cibbonui
 	class ButtonEventHandler : public EventHandler
 	{
 	public:
-		ButtonEventHandler(Win8Button* pControl);
+		ButtonEventHandler(Button* pControl);
+		virtual void LeftButtonDown(MouseEventArgs mea) override;
+		virtual void LeftButtonUp(MouseEventArgs mea) override;
+		virtual void RightButtonDown(MouseEventArgs mea) override;
+		virtual void RightButtonUp(MouseEventArgs mea) override;
+		virtual void MouseMove(MouseEventArgs mea) override;
+		cuiRect GetPosition() const;
+		void OnClick(std::function<void()>);
+		void DownClick(std::function<void()>);
+		void SetPosition(const cuiRect& pos);
+	private:
+		Button* pButton;
+		std::function<void()> func;
+		std::function<void()> Downfunc;
+	};
+
+
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   Controls                                      *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
+	enum Statesenum
+		{
+			Click,
+			MoveOn,
+			Normal,
+			Disabled,
+			MoveOut
+			//Other States Maybe
+		};
+	class CUIControl : public Observer, public Composite
+	{
+	public:
+		CUIControl(EventHandler* p);
+		void SetRoot(CUIWindowBase* p) override
+		{
+			pOwnerWindow = p;
+		}
+		virtual void LeftButtonDown(MouseEventArgs mea);
+		virtual void LeftButtonUp(MouseEventArgs mea);
+		virtual void RightButtonDown(MouseEventArgs mea);
+		virtual void RightButtonUp(MouseEventArgs mea);
+		virtual void MouseMove(MouseEventArgs mea);
+		virtual void SetControlText(const std::wstring& _text) = 0;
+		virtual const std::wstring& GetControlText() const = 0;
+		virtual Statesenum GetState() = 0;
+		virtual void SetState(Statesenum _state) = 0;
+		virtual ~CUIControl();
+		virtual void Update();
+		virtual cuiRect GetPosition() const override;
+		virtual void SetPosition(const cuiRect& cr) override;
+		void SetpOwnerWindow(CUIWindowBase* p);
+		CUIWindowBase* GetpOwnerWindow()
+		{
+			return pOwnerWindow;
+		}
+	protected:
+		cuiRect Position;
+		EventHandler* pEventHandler;
+		CUIWindowBase* pOwnerWindow;
+		bool Unshown;
+	private:
+		
+		std::shared_ptr<Controller> pController;
+
+	};
+
+	class Button :public CUIControl
+	{
+	public:
+		
+		Button(
+			ButtonBorderFactory* _pBorderFactory,
+		   ButtonInsideFactory* _pInsidefactory,
+		   ButtonContentFactory* _pContentFactory, 
+		   const std::wstring& ButtonContent = L""
+		);
+		virtual Statesenum GetState() override;
+		virtual void SetState(Statesenum _state) override;
+		void SetControlText(const std::wstring& _text) override
+		{
+			ButtonContent = _text;
+			Update();
+		}
+		const std::wstring& GetControlText() const override
+		{
+			return ButtonContent;
+		}
+		virtual void SetFont(const std::wstring& sw, cint _fontsize = 15, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter);
+		void Draw(Context* p) override;
+		//virtual void Update() = 0 override;
+		void OnClick(std::function<void()> foo);
+		void DownClick(std::function<void()> foo);
+		virtual ~Button();
+	protected:
+		Statesenum ButtonState;
+		std::wstring ButtonContent;
+		ButtonBorderFactory* pBorderFactory;
+		ButtonInsideFactory* pInsideFactory;
+		ButtonContentFactory* pContentFactory;
+	};
+
+	class Win8Button : public Button
+	{
+	public:
+		Win8Button(const std::wstring& Content = L"");
+		virtual void Update() override;
+		//virtual void Draw(Context* p) override;
+	};
+
+
+	class FlatButton : public Button
+	{
+	public:
+		FlatButton(const std::wstring& _Content = L"");
+		virtual void Update() override;
+	};
+
+	class CapButton :public Button
+	{
+	public:
+		CapButton(const std::wstring& ws = L"");
+		virtual void Update() override;
+		virtual void SetFont(const std::wstring& sw, cint _fontsize, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter);
+	private:
+		WindowContent* pc;
+	};
+
+	class Border : public Leaf
+	{
+	public:
+		Border();
+		void Draw(Context* p) override;
+		void SetBorderColor(cint _color);
+		void SetBorderWidth(float _width = 1.f);
+	private:
+		cint BorderColor;
+		float BorderWidth;
+	};
+	class Inside :public Leaf
+	{
+	public:
+		virtual ~Inside() = default;
+		virtual void SetInsideColor(cint color1, cint color2) = 0;
+	};
+
+
+	class LinearInside : public Inside
+	{
+	public:
+		LinearInside();
+		void SetInsideColor(cint _color1, cint _color2);
+		void Draw(Context* p) override;
+	private:
+		cint LinearInsideColor1;
+		cint LinearInsideColor2;
+	};
+
+	class PureInside : public Inside
+	{
+	public:
+		PureInside();
+		void SetInsideColor(cint _color, cint _color2) override;
+		void Draw(Context* p) override;
+	private:
+		cint InsideColor;
+	};
+
+	class Content :public Leaf
+	{
+	public:
+		Content();
+		virtual ~Content() = default; 
+		virtual void SetFont(const std::wstring& _fontname, cint fontsize, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter) = 0;
+		void SetContentColor(cint _color)
+		{
+			ContentColor = _color;
+		}
+	protected:
+		cint ContentColor;
+	};
+
+	
+	class PureContent :public Content
+	{
+	public:
+		PureContent();
+		void Draw(Context* p) override;
+		void SetFont(const std::wstring& _fontname, cint fontsize, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter) override
+		{
+			return;
+		}
+	};
+    /*此Content用来绘制其它字体的文字，将pTextFormat保存好后就和PureContent一样了*/
+	class SpecialContent : public Content
+	{
+	public:
+		SpecialContent();
+		void SetFont(const std::wstring& _fontname, cint fontsize, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter) override;
+		void Draw(Context* p);
+		~SpecialContent();
+	protected:
+		IDWriteTextFormat* pFormat;
+	};
+
+	class WindowContent : public SpecialContent
+	{
+	public:
+		void Draw(Context* p);
+	};
+
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   ScrollBar                                     *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
+
+
+	class ScrollBar : public CUIControl
+	{
+	public:
+		//ScrollBar()
+		void Draw(Context* p) override;
+		void Add(Component* p, const cuiRect& cr);
+		void SetRoot(CUIWindowBase* p);
+		void SetPosition(const cuiRect& cr) override;
+		cint GetCurrentPos() const;
+		void SetCurrentPos(cint Pos);
+		void SetMaxPos(cint _MinPos);
+		void SetPage(cint _Page);
+	private:
+		cuiRect Position;
+		cint MaxPos;
+		const cint ScrollBarWidth = 20;
+		cint CurrentPos;
+		//int BarLength;
+		
+		int Page;
+	};
+
+
+	class ScrollBarEventHandler : public EventHandler
+	{
+	public:
+		ScrollBarEventHandler(ScrollBar* pControl);
 		virtual void LeftButtonDown(MouseEventArgs mea) override;
 		virtual void LeftButtonUp(MouseEventArgs mea) override;
 		virtual void RightButtonDown(MouseEventArgs mea) override;
@@ -374,144 +671,122 @@ namespace cibbonui
 		cuiRect GetPosition() const;
 		void SetPosition(const cuiRect& pos);
 	private:
-		Win8Button* pButton;
+		ScrollBar* pScrollBar;
 		cuiRect Position;
-	};
-
-	enum Statesenum
-		{
-			Click,
-			MoveOn,
-			Normal,
-			Disabled
-			//Other States Maybe
-		};
-	class CUIControl : public Observer, public Composite
-	{
-	public:
-		CUIControl();
-		//CUIControl(CUIWindowBase* pWindow);
-		void SetRoot(CUIWindowBase* p) override
-		{
-			pOwnerWindow = p;
-		}
-		virtual Statesenum GetState() = 0;
-		virtual void SetState(Statesenum _state) = 0;
-		virtual ~CUIControl() = default;
-		virtual void Update();
-		virtual cuiRect GetEventPosition() const = 0;
-		//virtual void SetEventPosition(const cuiRect& pos) = 0;
-		void SetpOwnerWindow(CUIWindowBase* p);
-	private:
-		CUIWindowBase* pOwnerWindow;
-
+		bool MouseHover;
 	};
 
 
+	const float Win8ButtonBorderWidth = 2.f;
 
-
-	class Win8Button :public CUIControl
+	class ButtonBorderFactory
 	{
 	public:
-		
-		Win8Button(const std::wstring& ButtonContent = L"");
-		virtual void LeftButtonDown(MouseEventArgs mea);
-		virtual void LeftButtonUp(MouseEventArgs mea);
-		virtual void RightButtonDown(MouseEventArgs mea);
-		virtual void RightButtonUp(MouseEventArgs mea);
-		virtual void MouseMove(MouseEventArgs mea);
-		virtual cuiRect GetEventPosition() const override;
-		virtual Statesenum GetState() override;
-		virtual void SetState(Statesenum _state) override;
-		virtual void Draw(Context* p) override;
-		void SetPosition(const cuiRect& pos) override;
-		virtual void Update() override;
-		~Win8Button();
-	private:
-		Statesenum ButtonState;
-		ButtonCompositeFactory* pNormalButtonFactory;
-		ButtonCompositeFactory* pMoveOnButtonFactory;
-		ButtonCompositeFactory* pClickButtonFactory;
-		ButtonCompositeFactory* pNowButtonFactory;
-		ButtonEventHandler* pEventHandler;
-		std::wstring ButtonContent;
-		
-
-	};
-
-	class Border : public Leaf
-	{
-	public:
-		Border(cint _BorderColor, float _BorderWidth = 1.f);
-		void Draw(Context* p) override;
-	private:
-		//cuiRect BorderArea;
-		cint BorderColor;
-		float BorderWidth;
-	};
-
-	class Inside :public Leaf
-	{
-	public:
-		Inside(cint color1, cint color2);
-		void Draw(Context* p) override;
-	private:
-		//cuiRect InsideArea;
-		cint InsideColor1;
-		cint InsideColor2;
-	};
-
-	class Content :public Leaf
-	{
-	public:
-		Content(const std::wstring& _text);
-		void Draw(Context* p) override;
-		const std::wstring& GetContent() const;
-	private:
-		cuiRect ContentArea;
-		std::wstring ContentString;
-		cint ContentLength;
-		cint ContentWidth;
-	};
-
-	class ButtonCompositeFactory
-	{
-	public:
-		ButtonCompositeFactory();
-		virtual Border* CreateBorder() = 0;
-		virtual Inside* CreateInside() = 0;
-		virtual Content* CreateContent(const std::wstring& _text) = 0;
-		virtual ~ButtonCompositeFactory();
+		ButtonBorderFactory(Border* p);
+		virtual Border* GetNormalBorder() = 0;
+		virtual Border* GetMoveOnBorder() = 0;
+		virtual Border* GetClickBorder() = 0;
+		virtual~ButtonBorderFactory();
 	protected:
 		Border* pBorder;
+	};
+
+	class ButtonInsideFactory
+	{
+	public:
+		ButtonInsideFactory(Inside* p);
+		virtual Inside* GetNormalInside() = 0;
+		virtual Inside* GetMoveOnInside() = 0;
+		virtual Inside* GetClickInside() = 0;
+		virtual ~ButtonInsideFactory();
+	protected:
 		Inside* pInside;
+	};
+
+	class ButtonContentFactory
+	{
+	public:
+		ButtonContentFactory(Content* p);
+		virtual Content* GetNormalContent() = 0;
+		virtual Content* GetMoveOnContent() = 0;
+		virtual Content* GetClickContent() = 0;
+		void SetFont(const std::wstring& _text, cint fontsize = 15, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter)
+		{
+			pContent->SetFont(_text, fontsize);
+		}
+		virtual~ButtonContentFactory();
+	protected:
 		Content* pContent;
 	};
 
-
-	class NormalButtonCompositeFactory : public ButtonCompositeFactory
+	class Win8ButtonBorderFactory : public ButtonBorderFactory
 	{
 	public:
-		Border* CreateBorder();
-		Inside* CreateInside();
-		Content* CreateContent(const std::wstring& _text) override;
+		Win8ButtonBorderFactory();
+		Border* GetNormalBorder() override;
+		Border* GetMoveOnBorder();
+		Border* GetClickBorder();
 	};
 
-	class MoveOnButtonCompositeFactory : public ButtonCompositeFactory
+	class Win8ButtonInsideFactory : public ButtonInsideFactory
 	{
 	public:
-		Border* CreateBorder();
-		Inside* CreateInside();
-		Content* CreateContent(const std::wstring& _text) override;
+		Win8ButtonInsideFactory();
+		Inside* GetNormalInside() override;
+		Inside* GetMoveOnInside() override;
+		Inside* GetClickInside() override;
 	};
 
-	class ClickButtonCompositeFactory : public ButtonCompositeFactory
+	class Win8ButtonContentFactory : public ButtonContentFactory
 	{
 	public:
-		Border* CreateBorder();
-		Inside* CreateInside();
-		Content* CreateContent(const std::wstring& _text) override;
+		Win8ButtonContentFactory();
+		Content* GetNormalContent();
+		Content* GetMoveOnContent();
+		Content* GetClickContent();
+	
+	};
+	class FlatButtonInsideFactory : public ButtonInsideFactory
+	{
+	public:
+		FlatButtonInsideFactory();
+		Inside* GetNormalInside() override;
+		Inside* GetMoveOnInside() override;
+		Inside* GetClickInside() override;
+	};
+	class FlatButtonContentFactory : public ButtonContentFactory
+	{
+	public:
+		FlatButtonContentFactory();
+		Content* GetNormalContent();
+		Content* GetMoveOnContent();
+		Content* GetClickContent();
 	};
 
+	class SizeBox : public Container
+	{
+	public:
+		SizeBox(CUIWindowBase* p);
+		void Draw(Context* p) override;
+		void ReSize(const cuiRect& _size) override;
+		void SetRoot(CUIWindowBase* p) override;
+		//~SizeBox();
+	private:
+		FlatButton* pMini;
+		FlatButton* pClose;
+		FlatButton* pMax;
+	};
+
+	class Caption : public Container
+	{
+	public:
+		Caption(CUIWindowBase* p);
+		void Draw(Context* p);
+		void ReSize(const cuiRect& _size) override;
+		void SetRoot(CUIWindowBase* p) override;
+	private:
+		SizeBox* pSizeBox;
+		CapButton* pCap;
+	};
 
 }

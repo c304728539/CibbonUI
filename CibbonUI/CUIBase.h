@@ -1,4 +1,15 @@
 #pragma once
+#ifdef UNICODE
+#if defined _M_IX86
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_IA64
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='ia64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_X64
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#else
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#endif
+#endif
 #include <d2d1.h>
 #include <dwrite.h>
 #include <algorithm>
@@ -9,9 +20,12 @@
 #include <map>
 #include <unordered_map>
 #include <d2d1helper.h>
+#include <process.h>
+#include <functional>
 #pragma comment(lib,"Dwmapi.lib")
 #pragma comment(lib,"d2d1.lib")
 #pragma comment(lib,"dwrite.lib")
+#pragma comment(lib,"Comctl32.lib")
 
 namespace std
 {
@@ -20,7 +34,7 @@ namespace std
 	{	
 		size_t operator() (const std::pair<int, int>& p) const
 		{
-			return hash<int>()(p.first);
+			return hash<int>()(p.first) + hash<int>()(p.second);
 		}
 		// hash functor for std::pair<int,int>
 	};
@@ -76,6 +90,7 @@ namespace cibbonui
 		float GetWidth();
 		float GetHeight();
 		float getSize();
+		void MoveDown(float yoff);
 		
 	};
 	//operator overloads for cuiRect
@@ -84,7 +99,7 @@ namespace cibbonui
 	bool operator > (const cuiRect& cr1, const cuiRect& cr2);
 	bool operator < (const cuiRect& cr1, const cuiRect& cr2);
 	
-	union Color
+	/*union Color
 	{
 		struct 
 		{
@@ -95,7 +110,7 @@ namespace cibbonui
 		};
 		ucint color;
 	};
-
+*/
 
 	/*Helper functions*/
 	template<typename P, typename R>
@@ -103,5 +118,61 @@ namespace cibbonui
 	{
 		return Point.x >= Rect.left && Point.x < Rect.right && Point.y >= Rect.top && Point.y < Rect.bottom;
 	}
+
+	template<typename R1,typename R2>
+	inline bool RinRect(R1& rect1, R2 rect2)
+	{
+		//return (std::max)(rect1, rect2) == rect2;
+		auto temp = rect1;
+		return (rect1 = (std::min)(rect1, rect2)) == temp;
+	}
+
+	inline cuiRect GetMoveDown(const cuiRect& rc ,float yoff)
+	{
+		return cuiRect(rc.left, rc.top + yoff, rc.right, rc.bottom + yoff);
+	}
+
+	template<typename T>
+	inline const std::wstring& GetText(T* p)
+	{
+		return p->GetControlText();
+	}
+	struct Color
+	{
+		union
+		{
+			struct
+			{
+				unsigned char r;
+				unsigned char g;
+				unsigned char b;
+				unsigned char a;
+			};
+			ucint value;
+		};
+
+		Color()
+			:r(0), g(0), b(0), a(255)
+		{
+		}
+
+		Color(unsigned char _r, unsigned char _g, unsigned char _b, unsigned char _a = 255)
+			:r(_r), g(_g), b(_b), a(_a)
+		{
+		}
+
+		cint Compare(Color color)const
+		{
+			return value - color.value;
+		}
+
+		
+		bool operator==(Color color)const { return Compare(color) == 0; }
+		bool operator!=(Color color)const { return Compare(color) != 0; }
+		bool operator<(Color color)const { return Compare(color)<0; }
+		bool operator<=(Color color)const { return Compare(color) <= 0; }
+		bool operator>(Color color)const { return Compare(color)>0; }
+		bool operator>=(Color color)const { return Compare(color) >= 0; }
+	};
 
 }

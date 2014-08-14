@@ -81,10 +81,10 @@ namespace cibbonui{
 	}
 
 	cuiRect::cuiRect(const RECT& rc)
-		:left(rc.left),
-		top(rc.top),
-		right(rc.right),
-		bottom(rc.bottom)
+		:left((float)rc.left),
+		top((float)rc.top),
+		right((float)rc.right),
+		bottom((float)rc.bottom)
 	{
 	}
 
@@ -127,6 +127,12 @@ namespace cibbonui{
 	float cuiRect::GetHeight()
 	{
 		return bottom - top;
+	}
+
+	void cuiRect::MoveDown(float yoff)
+	{
+		top += yoff;
+		bottom += yoff;
 	}
 
 	bool operator ==(const cuiRect& r1, const cuiRect& r2)
