@@ -6,7 +6,8 @@ namespace cibbonui
 	std::shared_ptr<Controller> Controller::pController = nullptr;
 
 	Controller::Controller()
-		:Subject()
+		:Subject(),
+		pFocusControl(nullptr)
 	{
 
 	}
@@ -270,6 +271,18 @@ namespace cibbonui
 				0,
 				0);*/
 		}
+		case WM_CHAR:
+		{
+			MouseEventArgs mea;
+			mea.CtrlDown = (GetKeyState(VK_CONTROL) > 0);
+			mea.ShiftDown = (GetKeyState(VK_SHIFT) > 0);
+			mea.DownKey = wParam;
+			for (auto p : pController->Observerlist)
+			{
+				p->KeyDown(mea);
+			}
+			break;
+		}
 		case WM_NCHITTEST:
 			if ((lre = HitTestNCA(hWnd, wParam, lParam)) != HTNOWHERE)
 				return Already;
@@ -281,6 +294,12 @@ namespace cibbonui
 		{
 			
 			pOwnerWindow->ReSize(LOWORD(lParam), HIWORD(lParam));
+			break;
+		}
+		case WM_KILLFOCUS:
+		{
+			Controller::GetpController()->SetFocusControl(nullptr);
+			::SendMessage(hWnd, WM_PAINT, 0, 0);
 			break;
 		}
 		case WM_PAINT:
@@ -599,7 +618,9 @@ namespace cibbonui
 	FactoriesCreator::FactoriesCreator()
 		:pD2DFactory(nullptr),
 		pDwFactory(nullptr),
-		pNormalTextFormat(nullptr)
+		pNormalTextFormat(nullptr),
+		pFile(nullptr),
+		pFace(nullptr)
 	{
 		if (!pDwFactory)
 			HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
@@ -621,8 +642,41 @@ namespace cibbonui
 			pNormalTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 			pNormalTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 		}
+		if (!pFile)
+		{
+			wchar_t FilePath[MAX_PATH];
+			GetEnvironmentVariable(
+				L"windir",
+				FilePath,
+				_countof(FilePath));
+			FontPath = FilePath;
+			FontPath += L"\\Fonts\\msyh.ttc";
+			pDwFactory->CreateFontFileReference(
+				FontPath.data(),
+				NULL,
+				&pFile);
+		}
+		if (!pFace)
+		{
+			IDWriteFontFile* ffa[] = { pFile };
+			HRESULT hr = pDwFactory->CreateFontFace(
+				DWRITE_FONT_FACE_TYPE_TRUETYPE_COLLECTION,
+				1,
+				ffa,
+				0,
+				DWRITE_FONT_SIMULATIONS_NONE,
+				&pFace);
+			if (!pFace) throw;
+			pFace->GetMetrics(&FontMetrics);
+		}
+		
+		
 	}
 
+	ucint FactoriesCreator::GetFontHeight()
+	{
+		return FontMetrics.capHeight/96;
+	}
 	FactoriesCreator::~FactoriesCreator()
 	{
 		Free(pD2DFactory);
@@ -799,6 +853,23 @@ namespace cibbonui
 			);
 	}
 
+	void RenderManager::RenderText(cuiPoint Orig, IDWriteTextLayout* pLayout, IDWriteTextFormat* pFormat, cint color)
+	{
+		pRT->DrawTextLayout(
+			Orig,
+			pLayout,
+			GetBrush(color));
+	}
+
+	void RenderManager::PushClip(const cuiRect& cr)
+	{
+		pRT->PushAxisAlignedClip(cr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+	}
+
+	void RenderManager::PopClip()
+	{
+		pRT->PopAxisAlignedClip();
+	}
 
 	IDWriteTextFormat* FactoriesCreator::GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment dta, DwriteParagraphAlignment dpa)
 	{
@@ -861,6 +932,11 @@ namespace cibbonui
 	void CUIControl::MouseMove(MouseEventArgs mea)
 	{
 		pEventHandler->MouseMove(mea);
+	}
+
+	void CUIControl::KeyDown(MouseEventArgs mea)
+	{
+		return pEventHandler->KeyDown(mea);
 	}
 	CUIControl::~CUIControl()
 	{
@@ -936,10 +1012,15 @@ namespace cibbonui
 		return;
 	}
 
+	void ButtonEventHandler::KeyDown(MouseEventArgs mea)
+	{
+		return;
+	}
 	cuiRect ButtonEventHandler::GetPosition() const
 	{
 		return pButton->GetPosition();
 	}
+
 
 	Button::Button(ButtonBorderFactory* _pBorderFactory,
 		ButtonInsideFactory* _pInsidefactory,
@@ -989,14 +1070,14 @@ namespace cibbonui
 		ButtonState = _state;
 	}
 
-	void Win8Button::Update()
+	void Win8Button::UpdateState()
 	{
 		Leaves.clear();
 		switch (ButtonState)
 		{
 		case cibbonui::Click:
 		{
-			
+			SetFocus();
 			Add(pBorderFactory->GetClickBorder());
 			Add(pInsideFactory->GetClickInside());
 			Add(pContentFactory->GetNormalContent());
@@ -1004,16 +1085,18 @@ namespace cibbonui
 			break;
 		case cibbonui::MoveOn:
 		{
-
-			Add(pBorderFactory->GetMoveOnBorder());
+			if (TestFocus())
+				Add(pBorderFactory->GetClickBorder());
+			else Add(pBorderFactory->GetMoveOnBorder());
 			Add(pInsideFactory->GetMoveOnInside());
 			Add(pContentFactory->GetNormalContent());
 		}
 			break;
 		case cibbonui::Normal:
 		{
-
-			Add(pBorderFactory->GetNormalBorder());
+			if (TestFocus())
+				Add(pBorderFactory->GetClickBorder());
+			else Add(pBorderFactory->GetNormalBorder());
 			Add(pInsideFactory->GetNormalInside());
 			Add(pContentFactory->GetNormalContent());
 		}
@@ -1025,12 +1108,13 @@ namespace cibbonui
 		default:
 			break;
 		}
-		this->CUIControl::Update();
+		//this->CUIControl::Update();
 	}
 
 	void Button::Draw(Context* p)
 	{
 		p->pParent = this;
+		UpdateState();
 		for (auto pl : Leaves)
 		{
 			pl->Draw(p);
@@ -1065,7 +1149,7 @@ namespace cibbonui
 		Add(pContentFactory->GetNormalContent());
 	}
 
-	void FlatButton::Update()
+	void FlatButton::UpdateState()
 	{
 		Leaves.clear();
 		switch (ButtonState)
@@ -1101,7 +1185,7 @@ namespace cibbonui
 		default:
 			break;
 		}
-		this->CUIControl::Update();
+		//this->CUIControl::Update();
 	}
 
 	CapButton::CapButton(const std::wstring& ws)
@@ -1119,10 +1203,7 @@ namespace cibbonui
 	{
 		pc->SetFont(sw, _fontsize,dta,dpa);
 	}
-	void CapButton::Update()
-	{
-		this->CUIControl::Update();
-	}
+	
 	/*------ButtonComposites-----*/
 	/*Factory or Class itself ?*/
 
@@ -1341,6 +1422,29 @@ namespace cibbonui
 		pInside->SetInsideColor(0xa3bde3,0);
 		return pInside;
 	}
+	/*ScrollBarButtonInsideFactory::ScrollBarButtonInsideFactory()
+		:ButtonInsideFactory(new PureInside())
+	{
+
+	}
+
+	Inside* ScrollBarButtonInsideFactory::GetNormalInside()
+	{
+		pInside->SetInsideColor(0xf0f0f0, 0);
+		return pInside;
+	}
+	Inside* ScrollBarButtonInsideFactory::GetMoveOnInside()
+	{
+
+		pInside->SetInsideColor(0xdadada, 0);
+		return pInside;
+	}
+
+	Inside* ScrollBarButtonInsideFactory::GetClickInside()
+	{
+		pInside->SetInsideColor(0x606060, 0);
+		return pInside;
+	}*/
 	/******************************************************************
 	*                                                                 *
 	*                                                                 *
@@ -1395,8 +1499,29 @@ namespace cibbonui
 
 	Content* FlatButtonContentFactory::GetClickContent()
 	{
+		
 		return pContent;
 	}
+	//ScrollBarButtonContentFactory::ScrollBarButtonContentFactory()
+	//	:ButtonContentFactory(new SpecialContent())
+	//{
+	//	pContent->SetFont(L"Webdings", 5);
+	//}
+	//Content* ScrollBarButtonContentFactory::GetNormalContent()
+	//{
+	//	//pContent->SetContentColor()
+	//	return pContent;
+	//}
+	//Content* ScrollBarButtonContentFactory::GetMoveOnContent()
+	//{
+	//	return pContent;
+	//}
+
+	//Content* ScrollBarButtonContentFactory::GetClickContent()
+	//{
+	//	pContent->SetContentColor(0xffffff);
+	//	return pContent;
+	//}
 
 	SizeBox::SizeBox(CUIWindowBase* p)
 		:Container(),
@@ -1490,4 +1615,257 @@ namespace cibbonui
 		pSizeBox->SetRoot(p);
 		pCap->SetRoot(p);
 	}
+
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   ScrollBar                                     *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
+	
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   SingleLineTextBox                             *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
+	
+	SingleLineTextBoxBorderFactory::SingleLineTextBoxBorderFactory()
+		:ButtonBorderFactory(new Border())
+	{
+
+	}
+	
+	
+	
+	Border* SingleLineTextBoxBorderFactory::GetNormalBorder()
+	{
+		pBorder->SetBorderColor(0xc3c3c3);
+		return pBorder;
+	}
+	Border* SingleLineTextBoxBorderFactory::GetMoveOnBorder()
+	{
+		pBorder->SetBorderColor(0x92c0e0);
+		return pBorder;
+	}
+
+	Border* SingleLineTextBoxBorderFactory::GetClickBorder()
+	{
+
+		pBorder->SetBorderColor(0x2a8dd4);
+		return pBorder;
+	}
+	void SingleLineTextBoxEventHandler::LeftButtonDown(MouseEventArgs mea)
+	{
+		if (PtinRect(mea.EventPosition, pTextBox->GetPosition()))
+		{
+			pTextBox->SetState(Click);
+			auto y = pTextBox->GetRealCaretPos(mea.EventPosition.x);
+			
+			CreateCaret(pTextBox->GetpOwnerWindow()->GetWindowHandle(), (HBITMAP)NULL, 2, FactoriesCreator::GetFactoriesCreator()->GetFontHeight());
+			SetCaretPos(y, pTextBox->GetPosition().top+2);
+			//ShowCaret(pTextBox->GetpOwnerWindow()->GetWindowHandle());
+			pTextBox->UpdateState();
+			//if (Downfunc) Downfunc();
+		}
+
+	}
+
+	void SingleLineTextBoxEventHandler::LeftButtonUp(MouseEventArgs mea)
+	{
+		if (pTextBox->GetState() == Statesenum::Click)
+		{
+			pTextBox->SetState(MoveOn);
+			pTextBox->UpdateState();
+			//if (func) func();
+		}
+	}
+
+	void SingleLineTextBoxEventHandler::MouseMove(MouseEventArgs mea)
+	{
+		Statesenum TempState;
+		PtinRect(mea.EventPosition, pTextBox->GetPosition()) ? TempState = MoveOn : TempState = Normal;
+		if (TempState != pTextBox->GetState())
+		{
+			pTextBox->SetState(TempState);
+			pTextBox->UpdateState();
+		}
+
+	}
+
+	void SingleLineTextBoxEventHandler::RightButtonDown(MouseEventArgs)
+	{
+		return;
+	}
+
+	void SingleLineTextBoxEventHandler::RightButtonUp(MouseEventArgs)
+	{
+		return;
+	}
+
+	void SingleLineTextBoxEventHandler::KeyDown(MouseEventArgs mea)
+	{
+		pTextBox->InsertChar(mea.DownKey);
+	}
+
+	SingleLineTextBoxEventHandler::SingleLineTextBoxEventHandler(SingleLineTextBox* p)
+		:pTextBox(p)
+	{
+
+	}
+
+	SingleLineTextBox::SingleLineTextBox()
+		:CUIControl(new SingleLineTextBoxEventHandler(this)),
+		pBorderFactory(new SingleLineTextBoxBorderFactory()),
+		CurrentCaretPos(0),
+		CurrentStringPos(0),
+		TextBoxState(Normal),
+		pFormat(nullptr),
+		pLayout(nullptr)
+	{
+		Add(pBorderFactory->GetNormalBorder());
+		FactoriesCreator::GetFactoriesCreator()->GetpDwFactory()->CreateTextFormat
+			(L"Microsoft YaHei",
+			nullptr,
+			DWRITE_FONT_WEIGHT_NORMAL,
+			DWRITE_FONT_STYLE_NORMAL,
+			DWRITE_FONT_STRETCH_NORMAL,
+			12,
+			L"",
+			&pFormat);
+			
+		pFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_FAR);
+		pFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+		
+	}
+
+	void SingleLineTextBox::Draw(Context* p)
+	{
+		UpdateState();
+		for (auto pl : Leaves)
+		{
+			pl->Draw(p);
+		}
+		pOwnerWindow->GetpRenderManager()->PushClip(Position);
+		pOwnerWindow->GetpRenderManager()->RenderText(cuiPoint(Position.left + 2, Position.top + 2), pLayout, pFormat);
+		pOwnerWindow->GetpRenderManager()->PopClip();
+	}
+
+	void SingleLineTextBox::UpdateState()
+	{
+		Leaves.clear();
+		switch (TextBoxState)
+		{
+		case cibbonui::Click:
+		{
+			SetFocus();
+			Add(pBorderFactory->GetClickBorder());
+		}
+			break;
+		case cibbonui::MoveOn:
+		{
+			if (TestFocus())
+				Add(pBorderFactory->GetClickBorder());
+			else
+			{
+				Add(pBorderFactory->GetMoveOnBorder());
+			}
+		}
+			break;
+		case cibbonui::Normal:
+		{
+			if (TestFocus())
+				Add(pBorderFactory->GetClickBorder());
+			else
+			{
+				Add(pBorderFactory->GetNormalBorder());
+			}
+			
+		}
+			break;
+		case cibbonui::Disabled:
+			break;
+		case MoveOut:
+			break;
+		default:
+			break;
+		}
+		//this->CUIControl::Update();
+		if (!TestFocus())
+		{
+			DestroyCaret();
+		}
+		else
+		{
+			
+			//SetCaretPos(Position.left + 2, Position.top+2);
+			ShowCaret(pOwnerWindow->GetWindowHandle());
+		}
+
+	}
+
+	void SingleLineTextBox::InsertChar(wchar_t iChar)
+	{
+		RealText.insert(GetStringPos(), 1, iChar);
+		UpdateString();
+		CurrentStringPos++;
+	}
+
+	void SingleLineTextBox::UpdateString()
+	{
+		FactoriesCreator::GetFactoriesCreator()->GetpDwFactory()->CreateTextLayout
+			(
+			RealText.data(),
+			RealText.length(),
+			pFormat,
+			std::numeric_limits<float>::infinity(),
+			FactoriesCreator::GetFactoriesCreator()->GetFontHeight(),
+			&pLayout
+			);
+		StringPixel.clear();
+		int i = 0;
+		int re = 0;
+		while (i < RealText.length())
+		{
+			re += CalCharLength(RealText.at(i++));
+			StringPixel.push_back(re);
+		}
+		Update();
+	}
+
+	int SingleLineTextBox::CalCharLength(wchar_t iChar)
+	{
+		IDWriteTextLayout* pLayout;
+		DWRITE_TEXT_METRICS dtm;
+		FactoriesCreator::GetFactoriesCreator()->GetpDwFactory()->CreateTextLayout
+			(
+			std::wstring{ iChar }.data(),
+			1,
+			pFormat,
+			std::numeric_limits<float>::infinity(),
+			FactoriesCreator::GetFactoriesCreator()->GetFontHeight(),
+			&pLayout
+			);
+		pLayout->GetMetrics(&dtm);
+		auto res = dtm.width;
+		pLayout->Release();
+		return res;
+	}
+
+	int SingleLineTextBox::GetRealCaretPos(cint dist)
+	{
+		if (dist > StringPixel.back() + 2 + Position.left) return StringPixel.back() + 2 + Position.left;
+		for (auto x : StringPixel)
+		{
+			if (Position.left + x + 2 > dist) return CurrentCaretPos = Position.left + x + 2;
+		}
+		return Position.left + 2;
+	}
+
+
+
 }

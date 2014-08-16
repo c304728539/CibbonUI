@@ -21,6 +21,9 @@ namespace cibbonui
 	class MessageHandler;
 	class Controller;
 	class WindowContent;
+	class SingleLineTextBoxEventHandler;
+	class SingleLineTextBoxBorderFactory;
+	class CUIControl;
 
 	struct EventArgs
 	{
@@ -35,6 +38,9 @@ namespace cibbonui
 	{
 		//KeyDowns Maybe
 		cuiPoint EventPosition;
+		ucint DownKey;
+		bool CtrlDown = false;
+		bool ShiftDown = false;
 	};
 	//Observer Pattern
 	
@@ -46,6 +52,7 @@ namespace cibbonui
 		virtual void RightButtonDown(MouseEventArgs mea) = 0;
 		virtual void RightButtonUp(MouseEventArgs mea) = 0;
 		virtual void MouseMove(MouseEventArgs mea) = 0;
+		virtual void KeyDown(MouseEventArgs mea) = 0;
 		//virtual void Draw();
 		virtual ~Observer() = default;
 
@@ -229,11 +236,13 @@ namespace cibbonui
 	{
 		friend class MainWindowMessageHandler;
 	public:
-		
+		bool TestFocusControl(CUIControl* p){ return pFocusControl == p; }
+		void SetFocusControl(CUIControl* p){ pFocusControl = p; }
 		static std::shared_ptr<Controller> GetpController();
 	private:
 		Controller();
 		static std::shared_ptr<Controller> pController;
+		CUIControl* pFocusControl;
 	};
 
 	unsigned int __stdcall RenderThreadFunc(void* p);
@@ -338,6 +347,8 @@ namespace cibbonui
 		IDWriteTextFormat* GetpNormalTextFormat();
 		static const std::unique_ptr<FactoriesCreator>& GetFactoriesCreator() ;
 		~FactoriesCreator();
+		ucint GetFontHeight();
+
 		IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter);
 	private:
 		static std::unique_ptr<FactoriesCreator> pFactoriesCreator;
@@ -345,6 +356,10 @@ namespace cibbonui
 		mutable ID2D1Factory* pD2DFactory;
 		mutable IDWriteFactory* pDwFactory;
 		mutable IDWriteTextFormat* pNormalTextFormat;
+		std::wstring FontPath;
+		IDWriteFontFile* pFile;
+		IDWriteFontFace* pFace;
+		DWRITE_FONT_METRICS FontMetrics;
 	};
 	
 	class RenderManager
@@ -365,7 +380,9 @@ namespace cibbonui
 		void RenderText(const std::wstring& Content, const std::wstring& FontName, cint FontSize, const cuiRect& Area, DwriteTextAlignment, DwriteParagraphAlignment,cint TextColor);
 		void RenderText(const std::wstring& Content , const cuiRect& Area,cint TextColor);
 		void RenderText(const std::wstring& Content, const cuiRect& Area,cint TextColor,IDWriteTextFormat* pFormat);
-		
+		void RenderText(cuiPoint Orig, IDWriteTextLayout* pLayout, IDWriteTextFormat* pFormat,cint color = 0);
+		void PushClip(const cuiRect& cr);
+		void PopClip();
 		
 		std::pair<float,float> CalTextSize();
 	private:
@@ -402,6 +419,7 @@ namespace cibbonui
 		virtual void RightButtonDown(MouseEventArgs mea) = 0;
 		virtual void RightButtonUp(MouseEventArgs mea) = 0;
 		virtual void MouseMove(MouseEventArgs mea) = 0;
+		virtual void KeyDown(MouseEventArgs mea) = 0;
 		virtual ~EventHandler() = default;
 	protected:
 		
@@ -417,6 +435,7 @@ namespace cibbonui
 		virtual void RightButtonDown(MouseEventArgs mea) override;
 		virtual void RightButtonUp(MouseEventArgs mea) override;
 		virtual void MouseMove(MouseEventArgs mea) override;
+		virtual void KeyDown(MouseEventArgs mea) override;
 		cuiRect GetPosition() const;
 		void OnClick(std::function<void()>);
 		void DownClick(std::function<void()>);
@@ -458,14 +477,18 @@ namespace cibbonui
 		virtual void RightButtonDown(MouseEventArgs mea);
 		virtual void RightButtonUp(MouseEventArgs mea);
 		virtual void MouseMove(MouseEventArgs mea);
+		virtual void KeyDown(MouseEventArgs mea) override;
 		virtual void SetControlText(const std::wstring& _text) = 0;
 		virtual const std::wstring& GetControlText() const = 0;
 		virtual Statesenum GetState() = 0;
 		virtual void SetState(Statesenum _state) = 0;
 		virtual ~CUIControl();
-		virtual void Update();
+	    void Update();
+		virtual void UpdateState(){};
 		virtual cuiRect GetPosition() const override;
 		virtual void SetPosition(const cuiRect& cr) override;
+		void SetFocus(){ Controller::GetpController()->SetFocusControl(this); }
+		bool TestFocus(){ return Controller::GetpController()->TestFocusControl(this); }
 		void SetpOwnerWindow(CUIWindowBase* p);
 		CUIWindowBase* GetpOwnerWindow()
 		{
@@ -521,7 +544,8 @@ namespace cibbonui
 	{
 	public:
 		Win8Button(const std::wstring& Content = L"");
-		virtual void Update() override;
+		//virtual void Update() override;
+		void UpdateState() override;
 		//virtual void Draw(Context* p) override;
 	};
 
@@ -529,20 +553,25 @@ namespace cibbonui
 	class FlatButton : public Button
 	{
 	public:
+		void UpdateState() override;
 		FlatButton(const std::wstring& _Content = L"");
-		virtual void Update() override;
+		//virtual void Update() override;
 	};
 
 	class CapButton :public Button
 	{
 	public:
 		CapButton(const std::wstring& ws = L"");
-		virtual void Update() override;
+		//virtual void UpdateState() override;
 		virtual void SetFont(const std::wstring& sw, cint _fontsize, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter);
 	private:
 		WindowContent* pc;
 	};
 
+	class ScrollBarButton :public Button
+	{
+
+	};
 	class Border : public Leaf
 	{
 	public:
@@ -636,45 +665,29 @@ namespace cibbonui
 	******************************************************************/
 
 
-	class ScrollBar : public CUIControl
-	{
-	public:
-		//ScrollBar()
-		void Draw(Context* p) override;
-		void Add(Component* p, const cuiRect& cr);
-		void SetRoot(CUIWindowBase* p);
-		void SetPosition(const cuiRect& cr) override;
-		cint GetCurrentPos() const;
-		void SetCurrentPos(cint Pos);
-		void SetMaxPos(cint _MinPos);
-		void SetPage(cint _Page);
-	private:
-		cuiRect Position;
-		cint MaxPos;
-		const cint ScrollBarWidth = 20;
-		cint CurrentPos;
-		//int BarLength;
-		
-		int Page;
-	};
+	//class ScrollBarBase : public Composite
+	//{
+	//public:
+	//	ScrollBarBase();
+	//	void Draw(Context* p) override;
+	//	void Add(Component* p, const cuiRect& cr);
+	//	void SetRoot(CUIWindowBase* p);
+	//	void SetPosition(const cuiRect& cr) override;
+	//	cint GetCurrentPos() const;
+	//	void SetCurrentPos(cint Pos);
+	//	void SetMaxPos(cint _MinPos);
+	//	void SetPage(cint _Page);
+	//private:
+	//	cuiRect Position;
+	//	cint MaxPos;
+	//	const cint ScrollBarWidth = 20;
+	//	cint CurrentPos;
+	//	//int BarLength;
+	//	ScrollBarButton* pUp;
+	//	ScrollBarButton* pDown;
+	//	int Page;
+	//};
 
-
-	class ScrollBarEventHandler : public EventHandler
-	{
-	public:
-		ScrollBarEventHandler(ScrollBar* pControl);
-		virtual void LeftButtonDown(MouseEventArgs mea) override;
-		virtual void LeftButtonUp(MouseEventArgs mea) override;
-		virtual void RightButtonDown(MouseEventArgs mea) override;
-		virtual void RightButtonUp(MouseEventArgs mea) override;
-		virtual void MouseMove(MouseEventArgs mea) override;
-		cuiRect GetPosition() const;
-		void SetPosition(const cuiRect& pos);
-	private:
-		ScrollBar* pScrollBar;
-		cuiRect Position;
-		bool MouseHover;
-	};
 
 
 	const float Win8ButtonBorderWidth = 2.f;
@@ -762,7 +775,22 @@ namespace cibbonui
 		Content* GetMoveOnContent();
 		Content* GetClickContent();
 	};
-
+	/*class ScrollBarButtonInsideFactory : public ButtonInsideFactory
+	{
+	public:
+		ScrollBarButtonInsideFactory();
+		Inside* GetNormalInside() override;
+		Inside* GetMoveOnInside() override;
+		Inside* GetClickInside() override;
+	};
+	class ScrollBarButtonContentFactory : public ButtonContentFactory
+	{
+	public:
+		ScrollBarButtonContentFactory();
+		Content* GetNormalContent();
+		Content* GetMoveOnContent();
+		Content* GetClickContent();
+	};*/
 	class SizeBox : public Container
 	{
 	public:
@@ -787,6 +815,86 @@ namespace cibbonui
 	private:
 		SizeBox* pSizeBox;
 		CapButton* pCap;
+	};
+
+	/******************************************************************
+	*                                                                 *
+	*                                                                 *
+	*                   SingleLineTextBox                             *
+	*                                                                 *
+	*                                                                 *
+	*                                                                 *
+	******************************************************************/
+
+	struct UndoFrame
+	{
+		//Undo Things
+	};
+
+	class SingleLineTextBox : public CUIControl
+	{
+	public:
+		SingleLineTextBox();
+		void Draw(Context* p) override;
+		void UpdateState() override;
+		void SetState(Statesenum s) override
+		{
+			TextBoxState = s;
+		}
+		Statesenum GetState() override
+		{
+			return TextBoxState;
+		}
+		const std::wstring& GetControlText() const override
+		{
+			return RealText;
+		}
+		void SetControlText(const std::wstring& ws) override
+		{
+			RealText = ws;
+		}
+		int GetStringPos()
+		{
+			return min(RealText.length(), CurrentStringPos+1);
+		}
+		int GetRealCaretPos(cint distance);
+		void InsertChar(wchar_t iChar);//在当前位置插入字符
+		void UpdateString();
+		int CalCharLength(wchar_t iChar);
+	private:
+		int CurrentCaretPos;
+		int CurrentStringPos;
+		std::wstring RealText;
+		std::vector<int> StringPixel;
+		Statesenum TextBoxState;
+		SingleLineTextBoxBorderFactory* pBorderFactory;
+		IDWriteTextLayout* pLayout;
+		IDWriteTextFormat* pFormat;
+
+	};
+
+	class SingleLineTextBoxEventHandler : public EventHandler
+	{
+	public:
+
+		SingleLineTextBoxEventHandler(SingleLineTextBox* pControl);
+		virtual void LeftButtonDown(MouseEventArgs mea) override;
+		virtual void LeftButtonUp(MouseEventArgs mea) override;
+		virtual void RightButtonDown(MouseEventArgs mea) override;
+		virtual void RightButtonUp(MouseEventArgs mea) override;
+		virtual void MouseMove(MouseEventArgs mea) override;
+		virtual void KeyDown(MouseEventArgs mea) override;
+	private:
+		SingleLineTextBox* pTextBox;
+
+	};
+	class SingleLineTextBoxBorderFactory : public ButtonBorderFactory
+	{
+	public:
+		SingleLineTextBoxBorderFactory();
+		Border* GetNormalBorder() override;
+		Border* GetMoveOnBorder();
+		Border* GetClickBorder();
 	};
 
 }

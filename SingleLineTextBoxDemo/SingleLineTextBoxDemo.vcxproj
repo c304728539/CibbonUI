@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{58411EB9-B642-47EE-875D-055A936F2FA2}</ProjectGuid>
-    <RootNamespace>ScrollBarDemo</RootNamespace>
+    <ProjectGuid>{14CFB08F-3017-4034-8A53-C986D9D26ACF}</ProjectGuid>
+    <RootNamespace>SingleLineTextBoxDemo</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
