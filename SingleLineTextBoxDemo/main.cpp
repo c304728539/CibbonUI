@@ -13,8 +13,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	SingleLineTextBox* pTextBox = new SingleLineTextBox();
 	Win8Button* pButton = new Win8Button(L"Win8Button");
 	
-	pCanvas->Add(pButton, cuiRect(150, 20, 230, 60));
-	pCanvas->Add(pTextBox, cuiRect(20, 20, 120, 40));
+	pCanvas->Add(pTextBox, cuiRect(150, 20, 300, 60));
+	pCanvas->Add(pButton, cuiRect(20, 20, 120, 40));
 	pMainWindow->Add(pCanvas);
 	pMainWindow->Run();
 	delete pMainWindow;

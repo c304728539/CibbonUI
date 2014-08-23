@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ScrollBarDemo", "ScrollBarD
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SingleLineTextBoxDemo", "SingleLineTextBoxDemo\SingleLineTextBoxDemo.vcxproj", "{14CFB08F-3017-4034-8A53-C986D9D26ACF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ClipBoardTest", "ClipBoardTest\ClipBoardTest.vcxproj", "{B87DEA04-B96A-4F6C-9F97-4C2A9479CD3F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -35,6 +37,10 @@ Global
 		{14CFB08F-3017-4034-8A53-C986D9D26ACF}.Debug|Win32.Build.0 = Debug|Win32
 		{14CFB08F-3017-4034-8A53-C986D9D26ACF}.Release|Win32.ActiveCfg = Release|Win32
 		{14CFB08F-3017-4034-8A53-C986D9D26ACF}.Release|Win32.Build.0 = Release|Win32
+		{B87DEA04-B96A-4F6C-9F97-4C2A9479CD3F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B87DEA04-B96A-4F6C-9F97-4C2A9479CD3F}.Debug|Win32.Build.0 = Debug|Win32
+		{B87DEA04-B96A-4F6C-9F97-4C2A9479CD3F}.Release|Win32.ActiveCfg = Release|Win32
+		{B87DEA04-B96A-4F6C-9F97-4C2A9479CD3F}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -43,5 +49,6 @@ Global
 		{47D2D119-6CB3-4289-9FD9-1D81BE64CFC7} = {FD02ECF6-C776-4ABF-8ED7-06DE810616A3}
 		{58411EB9-B642-47EE-875D-055A936F2FA2} = {FD02ECF6-C776-4ABF-8ED7-06DE810616A3}
 		{14CFB08F-3017-4034-8A53-C986D9D26ACF} = {FD02ECF6-C776-4ABF-8ED7-06DE810616A3}
+		{B87DEA04-B96A-4F6C-9F97-4C2A9479CD3F} = {FD02ECF6-C776-4ABF-8ED7-06DE810616A3}
 	EndGlobalSection
 EndGlobal

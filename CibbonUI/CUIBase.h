@@ -22,6 +22,7 @@
 #include <d2d1helper.h>
 #include <process.h>
 #include <functional>
+#include <numeric>
 #pragma comment(lib,"Dwmapi.lib")
 #pragma comment(lib,"d2d1.lib")
 #pragma comment(lib,"dwrite.lib")
@@ -92,6 +93,7 @@ namespace cibbonui
 		float getSize();
 		void MoveDown(float yoff);
 		
+		
 	};
 	//operator overloads for cuiRect
 	bool operator == (const cuiRect& cr1, const cuiRect& cr2);
@@ -130,6 +132,10 @@ namespace cibbonui
 	inline cuiRect GetMoveDown(const cuiRect& rc ,float yoff)
 	{
 		return cuiRect(rc.left, rc.top + yoff, rc.right, rc.bottom + yoff);
+	}
+	inline cuiRect GetMoveDirect(const cuiRect& rc, float yoff)
+	{
+		return cuiRect(rc.left + yoff, rc.top, rc.right + yoff, rc.bottom);
 	}
 
 	template<typename T>

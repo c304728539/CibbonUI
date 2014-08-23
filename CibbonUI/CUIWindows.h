@@ -33,6 +33,17 @@ namespace cibbonui
 	//There will be many EventArgs like MouseEventArgs...
 
 	//It's Here..
+	class ClipBoard
+	{
+	public:
+		ClipBoard(CUIWindowBase* p);
+		std::wstring GetClipBoardText();
+		void CopyStringToClipBoard(const std::wstring& ws);
+	private:
+		HWND WindowHandle;
+
+	};
+
 
 	struct MouseEventArgs : public EventArgs
 	{
@@ -41,6 +52,8 @@ namespace cibbonui
 		ucint DownKey;
 		bool CtrlDown = false;
 		bool ShiftDown = false;
+		bool CharEvent = false;
+		CUIWindowBase* pWindow = nullptr;
 	};
 	//Observer Pattern
 	
@@ -74,6 +87,7 @@ namespace cibbonui
 	{
 	public:
 		Context(CUIWindowBase* p);
+		Context();
 		cuiRect Position;
 		CUIWindowBase* pWindow;
 		Composite* pParent;
@@ -212,6 +226,8 @@ namespace cibbonui
 		const bool NotYet = false;
 		virtual bool MessageHandlerWndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam,LRESULT& lre) = 0;
 		MessageHandler(CUIWindowBase* pWindow);
+		MessageHandler();
+		void SetpOwnerWindow(CUIWindowBase* p){ pOwnerWindow = p; pContext->pWindow = p; }
 		virtual ~MessageHandler() ;
 	protected:
 		CUIWindowBase* pOwnerWindow;
@@ -223,6 +239,7 @@ namespace cibbonui
 	{
 	public:
 		MainWindowMessageHandler(CUIWindowBase* pOwnerWindow);
+		MainWindowMessageHandler();
 		bool MessageHandlerWndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre) override;
 		void SetContainer(Container* p);
 
@@ -237,12 +254,17 @@ namespace cibbonui
 		friend class MainWindowMessageHandler;
 	public:
 		bool TestFocusControl(CUIControl* p){ return pFocusControl == p; }
-		void SetFocusControl(CUIControl* p){ pFocusControl = p; }
+		void SetFocusControl(CUIControl* p);
+		void SetMouseDownControl(CUIControl* p){ pDownControl = p; }
+		void ReleaseDownControl();
+		bool TestDownControl(CUIControl* p){ return pDownControl == p; }
 		static std::shared_ptr<Controller> GetpController();
 	private:
 		Controller();
 		static std::shared_ptr<Controller> pController;
 		CUIControl* pFocusControl;
+		CUIControl* pDownControl;
+		bool bDown;
 	};
 
 	unsigned int __stdcall RenderThreadFunc(void* p);
@@ -274,9 +296,11 @@ namespace cibbonui
 		virtual void CreateInit(const std::wstring& ClassName, std::wstring Title) = 0;*/
 		HWND GetWindowHandle() const;
 		void ReDraw() const;
+		std::wstring GetClipBoardText(){ return pClipBoard->GetClipBoardText(); }
+		void SetClipBoardText(const std::wstring& ws){ pClipBoard->CopyStringToClipBoard(ws); }
 		std::shared_ptr<RenderManager> GetpRenderManager() const;
 	protected:
-
+		ClipBoard* pClipBoard;
 		WndClass* pWndClass;
 		WindowCreator* pWindowCreator;
 		std::wstring WindowTitle;
@@ -295,6 +319,7 @@ namespace cibbonui
 			CaptionHeight = 20
 		};
 		CUIMainWindow(const std::wstring& Title);
+		CUIMainWindow(MainWindowMessageHandler* pMess, const std::wstring& Title);
 		//void Run() override;
 		bool HandleMessage(HWND hWnd, UINT Message, WPARAM wParam, LPARAM lParam, LRESULT& lre);
 		void RunMessageLoop() override;
@@ -303,17 +328,17 @@ namespace cibbonui
 		void Draw(Context* p);
 		void Add(Container* p);
 		void ReSize(USHORT x1, USHORT x2);
-		
+		//HCURSOR hCursor;
 		virtual ~CUIMainWindow();
 	protected:
 
 		virtual void CreateInitors() override;
 	private:
 		Container* pContainer;
-		MainWindowMessageHandler* pMainWindowMessageHandler;
+		/*MainWindow*/MessageHandler* pMessageHandler;
 		Caption* pCaption;
 		bool HasFirstSized;
-		
+		//HCURSOR
 	};
 
 
@@ -383,7 +408,7 @@ namespace cibbonui
 		void RenderText(cuiPoint Orig, IDWriteTextLayout* pLayout, IDWriteTextFormat* pFormat,cint color = 0);
 		void PushClip(const cuiRect& cr);
 		void PopClip();
-		
+		ID2D1SolidColorBrush* GetBrush(cint BrushColor);
 		std::pair<float,float> CalTextSize();
 	private:
 		RenderManager(CUIWindowBase* p);
@@ -394,7 +419,7 @@ namespace cibbonui
 		static std::map<CUIWindowBase*, std::shared_ptr<RenderManager>> RenderManagerMap;
 		std::unordered_map<cint, ID2D1SolidColorBrush*> SolidBrushMap;
 		std::unordered_map<std::pair<cint, cint>, ID2D1LinearGradientBrush*> LinearBrushMap;
-		ID2D1SolidColorBrush* GetBrush(cint BrushColor);
+		
 		
 		ID2D1LinearGradientBrush* GetBrush(cint BrushColor1, cint BrushColor2, cuiRect _rect);
 		IDWriteTextFormat* pNormalTextFormat;
@@ -420,6 +445,7 @@ namespace cibbonui
 		virtual void RightButtonUp(MouseEventArgs mea) = 0;
 		virtual void MouseMove(MouseEventArgs mea) = 0;
 		virtual void KeyDown(MouseEventArgs mea) = 0;
+		virtual void LoseFocus() = 0;
 		virtual ~EventHandler() = default;
 	protected:
 		
@@ -436,6 +462,7 @@ namespace cibbonui
 		virtual void RightButtonUp(MouseEventArgs mea) override;
 		virtual void MouseMove(MouseEventArgs mea) override;
 		virtual void KeyDown(MouseEventArgs mea) override;
+		virtual void LoseFocus(){};
 		cuiRect GetPosition() const;
 		void OnClick(std::function<void()>);
 		void DownClick(std::function<void()>);
@@ -478,17 +505,20 @@ namespace cibbonui
 		virtual void RightButtonUp(MouseEventArgs mea);
 		virtual void MouseMove(MouseEventArgs mea);
 		virtual void KeyDown(MouseEventArgs mea) override;
+		virtual void LoseFocus(){ pEventHandler->LoseFocus(); }
 		virtual void SetControlText(const std::wstring& _text) = 0;
 		virtual const std::wstring& GetControlText() const = 0;
 		virtual Statesenum GetState() = 0;
 		virtual void SetState(Statesenum _state) = 0;
+		void ReleaseFocus(){ pController->SetFocusControl(nullptr); }
 		virtual ~CUIControl();
-	    void Update();
+		void Update();
 		virtual void UpdateState(){};
 		virtual cuiRect GetPosition() const override;
 		virtual void SetPosition(const cuiRect& cr) override;
 		void SetFocus(){ Controller::GetpController()->SetFocusControl(this); }
 		bool TestFocus(){ return Controller::GetpController()->TestFocusControl(this); }
+		bool TestDown(){ return Controller::GetpController()->TestDownControl(this); }
 		void SetpOwnerWindow(CUIWindowBase* p);
 		CUIWindowBase* GetpOwnerWindow()
 		{
@@ -826,9 +856,21 @@ namespace cibbonui
 	*                                                                 *
 	******************************************************************/
 
+	enum UndoState
+	{
+		deletechar,
+		addchar,
+		replacechar
+	};
 	struct UndoFrame
 	{
 		//Undo Things
+		
+		UndoFrame(UndoState s, const std::wstring& ws, cint cp);
+		
+		UndoState State;
+		std::wstring ChangeString;
+		cint ChangePos;
 	};
 
 	class SingleLineTextBox : public CUIControl
@@ -855,21 +897,160 @@ namespace cibbonui
 		}
 		int GetStringPos()
 		{
-			return min(RealText.length(), CurrentStringPos+1);
+			return CurrentStringPos;
+		}
+		void SetStringPos(cint Pos)
+		{
+			CurrentStringPos = Pos;
+			CurrentCaretPos = GetCaretPosFromStringPos(CurrentStringPos);
+		}
+		void SetStringPosOnly(cint Pos)
+		{
+			CurrentStringPos = (std::max)(Pos, -1);
 		}
 		int GetRealCaretPos(cint distance);
-		void InsertChar(wchar_t iChar);//在当前位置插入字符
+		__forceinline int GetCaretPosFromStringPos(cint Pos)
+		{
+			//RealText.
+			auto dist = std::distance(StringPixel.begin(), StringPixel.end()) - 1;
+			dist = (std::min)(Pos+1, dist);
+			auto it = StringPixel.begin() + (std::max)(dist,0);
+			it = (std::max)(StringPixel.begin(), it);
+			//return StringPixel.at(Pos + 1);
+			if (*it - TotalOffset > (cint)Position.right - (cint)Position.left - 2)
+			{
+				TotalOffset = *it - (cint)Position.right + (cint)Position.left + 2;
+				return	(cint)Position.right - 2;
+			}
+			if (*it < TotalOffset)
+			{
+				auto x = TotalOffset - *it;
+				//BeginCaretPos += x;
+				TotalOffset -= x;
+				TotalOffset = (std::max)(TotalOffset, 0);
+				return (cint)Position.left + 2;
+			}
+			//if (x == StringPixel.end())
+			return *it - TotalOffset + (cint)Position.left + 2; /*std::accumulate(StringPixel.begin(),x , Position.left + 2)*/
+		}
+
+		cint GetCaretPosFromStringPosOnly(cint Pos)
+		{
+			return StringPixel.at(Pos + 1) - TotalOffset + (cint)Position.left + 2;
+		}
+		int GetStringPosFromCaretPos(cint Pos)
+		{
+			return std::distance(StringPixel.begin(), std::find(StringPixel.begin(), StringPixel.end(), Pos - Position.left - 2 + TotalOffset)) - 1;
+		}
+		//得到的位置是Pos字符串后面的位置
+		cint _GetCaretPos()
+		{
+			return CurrentCaretPos;
+		}
+		cint _GetBeginCaretPos()
+		{
+			return (std::min)(BeginCaretPos, CurrentCaretPos);
+		}
+		cint _GetEndCaretPos()
+		{
+			return (std::max)(BeginCaretPos, CurrentCaretPos);
+		}
+		cint _GetBeginStringPos()
+		{
+			return (std::min)(BeginStringPos, CurrentStringPos);
+		}
+		cint _GetEndStringPos()
+		{
+			return (std::max)(BeginStringPos, CurrentStringPos);
+		}
+		cint _GetStringDistance()
+		{
+			return  _GetEndStringPos() - _GetBeginStringPos();
+		}
+		cint DecreaseCurrentStringPos(cint p)
+		{
+			return CurrentStringPos=((std::max)(CurrentStringPos - p, -1));
+		}
+		void DecreaseCurrentStringPos()
+		{
+			CurrentStringPos = (std::max)(CurrentStringPos - 1, -1);
+		}
+		void IncreaseCurrentStringPos()
+		{
+			CurrentStringPos = (std::min)(CurrentStringPos + 1, cint(RealText.length()) - 1);
+		}
+		void ResetCurrentCaretPos()
+		{
+			CurrentCaretPos = GetCaretPosFromStringPos(CurrentStringPos);
+			BeginCaretPos = GetCaretPosFromStringPosOnly(BeginStringPos);
+			
+		}
+		void ResetCurrentStringPos()
+		{
+			CurrentStringPos = GetStringPosFromCaretPos(CurrentCaretPos);
+			BeginStringPos = GetStringPosFromCaretPos(BeginCaretPos);
+		}
+		void ResetBeginCaretPos()
+		{
+			BeginCaretPos = GetCaretPosFromStringPosOnly(BeginStringPos);
+		}
+		void ResetOtherStringPos()
+		{
+			BeginStringPos = GetStringPosFromCaretPos(BeginCaretPos);
+		}
+		void _SetCurrentStringPosOnly(cint pos)
+		{
+			CurrentStringPos = pos;
+		}
+		void _SetCurrentCaretPosOnly(cint Pos)
+		{
+			CurrentCaretPos = Pos;
+		}
+		std::wstring _GetSelectString()
+		{
+			return std::wstring(RealText.begin() + (std::max)(_GetBeginStringPos(), 0), RealText.begin() + (std::max)(_GetEndStringPos(),0)+1);
+		}
+		void InitFrame(UndoState s, const std::wstring& ws)
+		{
+			UndoFPS.push_back(UndoFrame(s,ws,CurrentStringPos));
+			UndoPos++;
+		}
+		void SetOffset(cint o){ TotalOffset += o; DirectOffset = o; }
+		void _SetCaretPos(cint Pos){ CurrentCaretPos = Pos; CurrentStringPos = GetStringPosFromCaretPos(CurrentCaretPos); }
+		void InsertChar(const std::wstring& iChar,bool Undo = true);//在当前位置插入字符
 		void UpdateString();
-		int CalCharLength(wchar_t iChar);
-	private:
+		float CalCharLength(wchar_t iChar);
+		int _CalPos(cint dist){ return (cint)Position.left + 2 + dist; }
+		void DeleteChar(bool Undo = true);
+		void StartSelect(){ 
+			BeginStringPos = CurrentStringPos; 
+			BeginCaretPos = GetCaretPosFromStringPos(BeginStringPos);
+		}
+		cint _GetCurrentStringPos()
+		{
+			return CurrentStringPos;
+		}
+		void ProcessUndo();
+		void SelectAll(){ BeginStringPos = -1; CurrentStringPos = RealText.length()-1; }
+	
+		~SingleLineTextBox();
+private:
 		int CurrentCaretPos;
 		int CurrentStringPos;
+		int UndoPos;
+		std::vector<UndoFrame> UndoFPS;
 		std::wstring RealText;
 		std::vector<int> StringPixel;
 		Statesenum TextBoxState;
+		int DirectOffset;
+		int TotalOffset;
 		SingleLineTextBoxBorderFactory* pBorderFactory;
 		IDWriteTextLayout* pLayout;
 		IDWriteTextFormat* pFormat;
+		int BeginStringPos;
+		int BeginCaretPos;
+		ID2D1Brush* pBlack;
+		ID2D1Brush* pWhite;
 
 	};
 
@@ -884,8 +1065,10 @@ namespace cibbonui
 		virtual void RightButtonUp(MouseEventArgs mea) override;
 		virtual void MouseMove(MouseEventArgs mea) override;
 		virtual void KeyDown(MouseEventArgs mea) override;
+		void LoseFocus() override;
 	private:
 		SingleLineTextBox* pTextBox;
+		HCURSOR hCursor;
 
 	};
 	class SingleLineTextBoxBorderFactory : public ButtonBorderFactory
