@@ -23,10 +23,12 @@
 #include <process.h>
 #include <functional>
 #include <numeric>
+#include "resource.h"
 #pragma comment(lib,"Dwmapi.lib")
 #pragma comment(lib,"d2d1.lib")
 #pragma comment(lib,"dwrite.lib")
 #pragma comment(lib,"Comctl32.lib")
+
 
 namespace std
 {

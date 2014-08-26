@@ -2,6 +2,7 @@
 #include "CUIBase.h"
 #include <string>
 #include <vector>
+#include <atlbase.h>
 
 namespace cibbonui
 {
@@ -24,6 +25,21 @@ namespace cibbonui
 	class SingleLineTextBoxEventHandler;
 	class SingleLineTextBoxBorderFactory;
 	class CUIControl;
+
+
+	class CUIMenu
+	{
+	public:
+		void ShowMenu(CUIWindowBase* p);
+		void InsertItem(UINT uMenu);
+		CUIMenu(UINT uMenu);
+		~CUIMenu();
+	private:
+		HMENU hMenu;
+		cint Pos;
+		std::vector<wchar_t*> Datas;
+	};
+
 
 	struct EventArgs
 	{
@@ -341,16 +357,24 @@ namespace cibbonui
 		//HCURSOR
 	};
 
+	
+
+
 
 	/*Render APIs*/
 	template<class Interface>
 	inline void Free(Interface* & ppInterfaceToRelease)
 	{
+		CRITICAL_SECTION cs;
+		InitializeCriticalSection(&cs);
+		EnterCriticalSection(&cs);
 		if (ppInterfaceToRelease != nullptr)
 		{
 			ppInterfaceToRelease->Release();
 			ppInterfaceToRelease = nullptr;
 		}
+		LeaveCriticalSection(&cs);
+		DeleteCriticalSection(&cs);
 	}
 	using DwriteTextAlignment = DWRITE_TEXT_ALIGNMENT;
 
@@ -370,13 +394,13 @@ namespace cibbonui
 		ID2D1Factory* GetpD2DFactory() const;
 		IDWriteFactory* GetpDwFactory() const;
 		IDWriteTextFormat* GetpNormalTextFormat();
-		static const std::unique_ptr<FactoriesCreator>& GetFactoriesCreator() ;
+		static std::shared_ptr<FactoriesCreator> GetFactoriesCreator() ;
 		~FactoriesCreator();
-		ucint GetFontHeight();
+		float GetFontHeight();
 
 		IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment dta = TextAlignmentCenter, DwriteParagraphAlignment dpa = ParagraphAlignmentCenter);
 	private:
-		static std::unique_ptr<FactoriesCreator> pFactoriesCreator;
+		static std::shared_ptr<FactoriesCreator> pFactoriesCreator;
 		FactoriesCreator();
 		mutable ID2D1Factory* pD2DFactory;
 		mutable IDWriteFactory* pDwFactory;
@@ -387,6 +411,55 @@ namespace cibbonui
 		DWRITE_FONT_METRICS FontMetrics;
 	};
 	
+	struct FontProperties
+	{
+		float FontHeight;
+		std::wstring FontName;
+		DwriteTextAlignment DTA;
+		DwriteParagraphAlignment DPA;
+
+	};
+	/*HelperFunction*/
+
+	std::pair<float, float> CalCharLength(std::wstring ws);
+
+
+	class DCRenderManager
+	{
+	public:
+
+		static std::shared_ptr<DCRenderManager> GetpDCRenderManager();
+		~DCRenderManager();
+		void SetDC(HDC hDC,RECT* rect);
+		void BeginRender();
+		void EndRender();
+		void Clear(cint ClearColor);
+		void DrawBorder(const cuiRect& rect, cint BorderColor, float LineWidth);
+		void NormalFillRect(const cuiRect& rect, cint FillColor);
+		void RenderText(const std::wstring& Content, const std::wstring& FontName, cint FontSize, const cuiRect& Area, DwriteTextAlignment, DwriteParagraphAlignment, cint TextColor);
+		void RenderText(const std::wstring& Content, const cuiRect& Area, cint TextColor);
+		void RenderText(const std::wstring& Content, const cuiRect& Area, cint TextColor, IDWriteTextFormat* pFormat);
+		void RenderText(cuiPoint Orig, IDWriteTextLayout* pLayout, IDWriteTextFormat* pFormat, cint color = 0);
+		void PushClip(const cuiRect& cr);
+		void PopClip();
+		ID2D1SolidColorBrush* GetBrush(cint BrushColor);
+		//std::pair<float, float> CalTextSize(std::wstring _text);
+	private:
+		DCRenderManager();
+		ID2D1DCRenderTarget* pDCRT;
+		ID2D1Factory* pD2DFactory;
+		IDWriteFactory* pDwFactory;
+		IDWriteTextFormat* pNormalTextFormat;
+		ID2D1SolidColorBrush* pBrush;
+		static std::shared_ptr<DCRenderManager> pDCRenderManager;
+		//IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment, DwriteParagraphAlignment);
+	};
+
+
+
+
+
+
 	class RenderManager
 	{
 	public:
@@ -409,25 +482,22 @@ namespace cibbonui
 		void PushClip(const cuiRect& cr);
 		void PopClip();
 		ID2D1SolidColorBrush* GetBrush(cint BrushColor);
-		std::pair<float,float> CalTextSize();
+		//std::pair<float,float> CalTextSize();
 	private:
 		RenderManager(CUIWindowBase* p);
-
 		ID2D1HwndRenderTarget* pRT;
 		ID2D1Factory* pD2DFactory;
 		IDWriteFactory* pDwFactory;
 		static std::map<CUIWindowBase*, std::shared_ptr<RenderManager>> RenderManagerMap;
 		std::unordered_map<cint, ID2D1SolidColorBrush*> SolidBrushMap;
 		std::unordered_map<std::pair<cint, cint>, ID2D1LinearGradientBrush*> LinearBrushMap;
-		
-		
+		//std::make_shared<int>(3);
+		std::function<void()> foo;
 		ID2D1LinearGradientBrush* GetBrush(cint BrushColor1, cint BrushColor2, cuiRect _rect);
 		IDWriteTextFormat* pNormalTextFormat;
 
 		//IDWriteTextFormat* GetpTextFormat(cint FontSize, const std::wstring& FontName, DwriteTextAlignment, DwriteParagraphAlignment);
 	};
-
-
 	/******************************************************************
 	*                                                                 *
 	*                                                                 *
@@ -654,6 +724,7 @@ namespace cibbonui
 		}
 	protected:
 		cint ContentColor;
+		IDWriteTextLayout* pLayout;
 	};
 
 	
@@ -1012,7 +1083,7 @@ namespace cibbonui
 		}
 		void InitFrame(UndoState s, const std::wstring& ws)
 		{
-			UndoFPS.push_back(UndoFrame(s,ws,CurrentStringPos));
+			UndoFPS.insert( UndoFPS.begin()+UndoPos,UndoFrame(s,ws,CurrentStringPos));
 			UndoPos++;
 		}
 		void SetOffset(cint o){ TotalOffset += o; DirectOffset = o; }
@@ -1030,9 +1101,19 @@ namespace cibbonui
 		{
 			return CurrentStringPos;
 		}
+		void ShowMenu(CUIWindowBase* p)
+		{
+			pMenu->ShowMenu(p);
+		}
 		void ProcessUndo();
 		void SelectAll(){ BeginStringPos = -1; CurrentStringPos = RealText.length()-1; }
-	
+		void ShowTheCaret()
+		{
+			//
+			::SetCaretPos(_GetCaretPos(), (cint)GetPosition().top + 2);
+			//::HideCaret(pOwnerWindow->GetWindowHandle());
+			::ShowCaret(pOwnerWindow->GetWindowHandle());
+		}
 		~SingleLineTextBox();
 private:
 		int CurrentCaretPos;
@@ -1051,6 +1132,7 @@ private:
 		int BeginCaretPos;
 		ID2D1Brush* pBlack;
 		ID2D1Brush* pWhite;
+		CUIMenu* pMenu;
 
 	};
 

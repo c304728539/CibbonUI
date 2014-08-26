@@ -3,6 +3,80 @@
 using namespace D2D1;
 namespace cibbonui
 {
+	inline HINSTANCE getInstance()
+	{
+		return GetModuleHandle(nullptr);
+	}
+
+	std::pair<float, float> CalCharLength(std::wstring ws)
+	{
+		auto p = FactoriesCreator::GetFactoriesCreator();
+		IDWriteTextLayout* pLayout = nullptr;
+		p->GetpDwFactory()->CreateTextLayout(
+			ws.data(),
+			ws.length(),
+			p->GetpNormalTextFormat(),
+			std::numeric_limits<float>::infinity(),
+			std::numeric_limits<float>::infinity(),
+			&pLayout);
+		DWRITE_TEXT_METRICS DTM;
+		pLayout->GetMetrics(&DTM);
+		return std::make_pair(DTM.widthIncludingTrailingWhitespace, DTM.height);
+	}
+	CUIMenu::CUIMenu(UINT uMenu)
+		:Pos(0),
+		hMenu(::LoadMenu(getInstance(), MAKEINTRESOURCE(uMenu)))
+	{
+		
+	}
+
+	void CUIMenu::InsertItem(UINT uMenu)
+	{
+		MENUITEMINFO mii;
+		mii.cbSize = sizeof(mii);
+		mii.fType = NULL;
+		mii.fMask = MIIM_STRING;
+		mii.dwTypeData = NULL;
+		if (!::GetMenuItemInfo(hMenu, uMenu, FALSE, &mii))
+		{
+			return;
+		}
+		mii.cch++;
+		Datas.push_back((wchar_t*)::LocalAlloc(LPTR, mii.cch*sizeof(wchar_t)));
+		mii.dwTypeData = Datas.back();
+		if (!::GetMenuItemInfo(hMenu, uMenu, FALSE, &mii))
+		{
+			return;
+		}
+		mii.dwItemData = PtrToUlong(Datas.back());
+		mii.fMask = MIIM_FTYPE | MIIM_DATA;
+		mii.fType = MFT_OWNERDRAW;
+		if (!::SetMenuItemInfo(hMenu, uMenu, FALSE, &mii))
+		{
+			return;
+		}
+	}
+
+
+	void CUIMenu::ShowMenu(CUIWindowBase* p)
+	{
+		POINT pt;
+		::GetCursorPos(&pt);
+		auto x = ::GetSubMenu(hMenu, 0);
+		TrackPopupMenu(x, TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, 0, p->GetWindowHandle(), NULL);
+	}
+
+	CUIMenu::~CUIMenu()
+	{
+		for (auto p : Datas)
+		{
+			LocalFree(p);
+		}
+		::DestroyMenu(hMenu);
+	}
+
+
+
 	std::shared_ptr<Controller> Controller::pController = nullptr;
 
 	Controller::Controller()
@@ -29,11 +103,7 @@ namespace cibbonui
 	{
 		SetMouseDownControl(nullptr);
 	}
-	inline HINSTANCE getInstance()
-	{
-		return GetModuleHandle(nullptr);
-	}
-
+	
 	ClipBoard::ClipBoard(CUIWindowBase* p)
 		:WindowHandle(p->GetWindowHandle())
 	{
@@ -347,7 +417,20 @@ namespace cibbonui
 		}
 		switch (Message)
 		{
-
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam))
+				
+			{
+			case ID_UNDO:
+			{
+				int i = 0;
+				break;
+			}
+			default:
+				break;
+			}
+		}
 		case WM_CREATE:
 		{
 			hRenderThread = (HANDLE)_beginthreadex(
@@ -357,6 +440,44 @@ namespace cibbonui
 				pContext,
 				0,
 				0);
+			break;
+
+		}
+		case WM_MEASUREITEM:
+		{
+			auto pl = (MEASUREITEMSTRUCT*)(lParam);
+			std::wstring ws((wchar_t*)(pl->itemData));
+			auto pa = cibbonui::CalCharLength(ws);
+			pl->itemWidth = 20;
+			pl->itemHeight = pa.second;
+			break;
+		}
+		case WM_DRAWITEM:
+		{
+			auto pl = (DRAWITEMSTRUCT*)(lParam);
+			//pl->
+			std::wstring ws((wchar_t*)pl->itemData);
+			auto pr = DCRenderManager::GetpDCRenderManager();
+			auto p = pl->rcItem;
+			/*POINT LeftCorner = { p.left, p.top };
+			POINT RightCorner = { p.right, p.bottom };
+			
+			::ClientToScreen(hWnd, &LeftCorner);
+			::ClientToScreen(hWnd, &RightCorner);
+			RECT rect = { LeftCorner.x, LeftCorner.y, RightCorner.x, RightCorner.y };*/
+			RECT temp = { 0, 0, 1920, 1080 };
+			pr->SetDC(pl->hDC,&temp);
+			pr->BeginRender();
+			if (pl->itemState & ODS_SELECTED)
+			{
+				pr->NormalFillRect(cuiRect(pl->rcItem), 0xc9def5);
+			}
+			else
+			{
+				pr->NormalFillRect(cuiRect(pl->rcItem), 0xf6f6f6);
+			}
+			pr->RenderText(ws, cuiRect(pl->rcItem), 0);
+			pr->EndRender();
 			break;
 
 		}
@@ -372,7 +493,7 @@ namespace cibbonui
 			{
 				p->KeyDown(mea);
 			}
-			break;
+			return 0;
 		}
 		case WM_KEYDOWN:
 		{
@@ -411,11 +532,16 @@ namespace cibbonui
 		case WM_SETFOCUS:
 		{
 			CreateCaret(pOwnerWindow->GetWindowHandle(), (HBITMAP)NULL, 1, FactoriesCreator::GetFactoriesCreator()->GetFontHeight());
+			::SetCaretPos(-1, -1);
+			::ShowCaret(hWnd);
 			break;
 		}
 		case WM_PAINT:
 		{
+			PAINTSTRUCT ps;
+			auto x = BeginPaint(hWnd, &ps);
 			::PostThreadMessage(GetThreadId(hRenderThread), WM_PAINT, 0, 0);
+			EndPaint(hWnd, &ps);
 			break;
 		}
 		case WM_LBUTTONDOWN:
@@ -482,6 +608,30 @@ namespace cibbonui
 			for (auto p : pController->Observerlist)
 			{
 				p->MouseMove(mea);
+			}
+			break;
+		}
+		case WM_RBUTTONDOWN:
+		{
+			MouseEventArgs mea;
+			mea.EventPosition = cuiPoint((float)GET_X_LPARAM(lParam), (float)GET_Y_LPARAM(lParam));
+			mea.pWindow = pOwnerWindow;
+			//mea.Sender = pContainer;
+			for (auto p : pController->Observerlist)
+			{
+				p->RightButtonDown(mea);
+			}
+			break;
+		}
+		case WM_RBUTTONUP:
+		{
+			MouseEventArgs mea;
+			mea.EventPosition = cuiPoint((float)GET_X_LPARAM(lParam), (float)GET_Y_LPARAM(lParam));
+			mea.pWindow = pOwnerWindow;
+			//mea.Sender = pContainer;
+			for (auto p : pController->Observerlist)
+			{
+				p->RightButtonUp(mea);
 			}
 			break;
 		}
@@ -765,7 +915,7 @@ namespace cibbonui
 
 	/*Render APIs*/
 
-	std::unique_ptr<FactoriesCreator> FactoriesCreator::pFactoriesCreator(nullptr);
+	std::shared_ptr<FactoriesCreator> FactoriesCreator::pFactoriesCreator(nullptr);
 
 	FactoriesCreator::FactoriesCreator()
 		:pD2DFactory(nullptr),
@@ -780,20 +930,7 @@ namespace cibbonui
 			reinterpret_cast<IUnknown **>(&pDwFactory));
 		if (!pD2DFactory)
 			HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &pD2DFactory);
-		if (!pNormalTextFormat)
-		{
-			pDwFactory->CreateTextFormat(
-				L"Microsoft YaHei",
-				nullptr,
-				DWRITE_FONT_WEIGHT_NORMAL,
-				DWRITE_FONT_STYLE_NORMAL,
-				DWRITE_FONT_STRETCH_NORMAL,
-				(FLOAT)NormalFontSize,
-				L"",
-				&pNormalTextFormat);
-			pNormalTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-			pNormalTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-		}
+		
 		if (!pFile)
 		{
 			wchar_t FilePath[MAX_PATH];
@@ -821,13 +958,27 @@ namespace cibbonui
 			if (!pFace) throw;
 			pFace->GetMetrics(&FontMetrics);
 		}
+		if (!pNormalTextFormat)
+		{
+			pDwFactory->CreateTextFormat(
+				L"Microsoft YaHei",
+				nullptr,
+				DWRITE_FONT_WEIGHT_NORMAL,
+				DWRITE_FONT_STYLE_NORMAL,
+				DWRITE_FONT_STRETCH_NORMAL,
+				10.f * 96.f / 72.f,
+				L"",
+				&pNormalTextFormat);
+			pNormalTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+			pNormalTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+		}
 
 
 	}
 
-	ucint FactoriesCreator::GetFontHeight()
+	float FactoriesCreator::GetFontHeight()
 	{
-		return FontMetrics.capHeight / 96;
+		return (FontMetrics.ascent +FontMetrics.descent + FontMetrics.lineGap) / float(FontMetrics.designUnitsPerEm);
 	}
 	FactoriesCreator::~FactoriesCreator()
 	{
@@ -836,7 +987,7 @@ namespace cibbonui
 		Free(pNormalTextFormat);
 	}
 
-	const std::unique_ptr<FactoriesCreator>& FactoriesCreator::GetFactoriesCreator()
+	std::shared_ptr<FactoriesCreator> FactoriesCreator::GetFactoriesCreator()
 	{
 		if (!pFactoriesCreator) pFactoriesCreator.reset(new FactoriesCreator());
 		return pFactoriesCreator;
@@ -907,7 +1058,6 @@ namespace cibbonui
 
 	void RenderManager::EndRender()
 	{
-		//if (pRT)
 		pRT->EndDraw();
 	}
 
@@ -1014,6 +1164,7 @@ namespace cibbonui
 
 	void RenderManager::RenderText(cuiPoint Orig, IDWriteTextLayout* pLayout, IDWriteTextFormat* pFormat, cint color)
 	{
+		if (!pLayout) return;
 		CRITICAL_SECTION cs;
 		InitializeCriticalSection(&cs);
 		EnterCriticalSection(&cs);
@@ -1057,8 +1208,139 @@ namespace cibbonui
 	{
 		pRT->Resize(D2D1::SizeU(x, y));
 	}
+	DCRenderManager::~DCRenderManager()
+	{
+		Free(pDCRT);
+		Free(pBrush);
+	}
+
+	std::shared_ptr<DCRenderManager> DCRenderManager::pDCRenderManager(nullptr);
+	DCRenderManager::DCRenderManager()
+		:pD2DFactory(FactoriesCreator::GetFactoriesCreator()->GetpD2DFactory()),
+		pDwFactory(FactoriesCreator::GetFactoriesCreator()->GetpDwFactory()),
+		pNormalTextFormat(FactoriesCreator::GetFactoriesCreator()->GetpNormalTextFormat()),
+		pDCRT(nullptr),
+		pBrush(nullptr)
+	{
+		auto prop = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
+			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+			D2D1_ALPHA_MODE_PREMULTIPLIED));
+		pD2DFactory->CreateDCRenderTarget(
+			&prop,
+			&pDCRT);
+		pDCRT->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+		pDCRT->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
+	}
+
+	std::shared_ptr<DCRenderManager> DCRenderManager::GetpDCRenderManager()
+	{
+		if (!DCRenderManager::pDCRenderManager) pDCRenderManager.reset(new DCRenderManager());
+		return DCRenderManager::pDCRenderManager;
+	}
+
+	void DCRenderManager::BeginRender()
+	{
+		//if (pRT)
+		pDCRT->BeginDraw();
+	}
+
+	void DCRenderManager::EndRender()
+	{
+		auto hr = pDCRT->EndDraw();
+		int x = 0;
+	}
+
+	void DCRenderManager::Clear(cint ClearColor)
+	{
+		pDCRT->Clear(D2D1::ColorF(ClearColor));
+	}
+	void DCRenderManager::DrawBorder(const cuiRect& rect, cint BorderColor, float LineWidth)
+	{
+		pDCRT->DrawRectangle(rect, GetBrush(BorderColor), LineWidth);
+	}
+
+	void DCRenderManager::NormalFillRect(const cuiRect& rect, cint FillColor)
+	{
+		pDCRT->FillRectangle(rect, GetBrush(FillColor));
+	}
 
 
+	ID2D1SolidColorBrush* DCRenderManager::GetBrush(cint BrushColor)
+	{
+		if (!pBrush)
+			pDCRT->CreateSolidColorBrush(
+				ColorF(BrushColor), &pBrush);
+		else
+			pBrush->SetColor(ColorF(BrushColor));
+		return pBrush;
+	}
+
+	void DCRenderManager::RenderText(const std::wstring& Content, const cuiRect& Area, cint TextColor)
+	{
+		pDCRT->DrawTextW(
+			Content.c_str(),
+			Content.size(),
+			pNormalTextFormat,
+			Area,
+			GetBrush(TextColor),
+			D2D1_DRAW_TEXT_OPTIONS_CLIP
+			);
+	}
+
+	void DCRenderManager::RenderText(const std::wstring& Content, const std::wstring& FontName, cint FontSize, const cuiRect& Area, DwriteTextAlignment dta, DwriteParagraphAlignment dpa, cint TextColor)
+	{
+		auto pTextFormat = FactoriesCreator::GetFactoriesCreator()->GetpTextFormat(FontSize, FontName, dta, dpa);
+		pDCRT->DrawTextW(
+			Content.c_str(),
+			Content.size(),
+			pTextFormat,
+			Area,
+			GetBrush(TextColor),
+			D2D1_DRAW_TEXT_OPTIONS_CLIP
+			);
+		pTextFormat->Release();
+	}
+
+	void DCRenderManager::RenderText(const std::wstring& Content, const cuiRect& Area, cint TextColor, IDWriteTextFormat* pFormat)
+	{
+		pDCRT->DrawTextW(
+			Content.c_str(),
+			Content.size(),
+			pFormat,
+			Area,
+			GetBrush(TextColor),
+			D2D1_DRAW_TEXT_OPTIONS_CLIP
+			);
+	}
+
+	void DCRenderManager::RenderText(cuiPoint Orig, IDWriteTextLayout* pLayout, IDWriteTextFormat* pFormat, cint color)
+	{
+		if (!pLayout) return;
+		CRITICAL_SECTION cs;
+		InitializeCriticalSection(&cs);
+		EnterCriticalSection(&cs);
+		pDCRT->DrawTextLayout(
+			Orig,
+			pLayout,
+			GetBrush(color));
+		LeaveCriticalSection(&cs);
+		DeleteCriticalSection(&cs);
+	}
+
+	void DCRenderManager::PushClip(const cuiRect& cr)
+	{
+		pDCRT->PushAxisAlignedClip(cr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+	}
+
+	void DCRenderManager::SetDC(HDC hDC,RECT* rect)
+	{
+		pDCRT->BindDC(hDC, rect);
+	}
+
+	void DCRenderManager::PopClip()
+	{
+		pDCRT->PopAxisAlignedClip();
+	}
 	CUIControl::CUIControl(EventHandler* p)
 		:pOwnerWindow(nullptr),
 		Observer(),
@@ -1849,11 +2131,12 @@ namespace cibbonui
 			pTextBox->SetState(Click);
 			auto y = pTextBox->GetRealCaretPos((cint)mea.EventPosition.x);
 			pTextBox->_SetCaretPos(y);
-			//::HideCaret(mea.pWindow->GetWindowHandle());
+			////::HideCaret(mea.pWindow->GetWindowHandle());
 			::SetCaretPos(pTextBox->_GetCaretPos(), (cint)pTextBox->GetPosition().top + 2);
 			pTextBox->StartSelect();
-			::ShowCaret(mea.pWindow->GetWindowHandle());
-			pTextBox->Update();
+			//::ShowCaret(mea.pWindow->GetWindowHandle());
+			//pTextBox->ShowTheCaret();
+			//pTextBox->Update();
 
 
 		}
@@ -1871,18 +2154,7 @@ namespace cibbonui
 
 	void SingleLineTextBoxEventHandler::LeftButtonUp(MouseEventArgs mea)
 	{
-		//if (pTextBox->GetState() == Statesenum::Click)
-		//{
-		//	pTextBox->SetState(MoveOn);
-		//	pTextBox->Update();
-		//	//if (func) func();
-		//	
-		//}
 		Controller::GetpController()->ReleaseDownControl();
-		/*if (PtinRect(mea.EventPosition, pTextBox->GetPosition()))
-		{
-		Controller::GetpController()->ReleaseDownControl();
-		}*/
 	}
 
 	void SingleLineTextBoxEventHandler::MouseMove(MouseEventArgs mea)
@@ -1910,25 +2182,30 @@ namespace cibbonui
 				pTextBox->_SetCaretPos(pTextBox->GetRealCaretPos((cint)mea.EventPosition.x));
 			}
 			::SetCaretPos(pTextBox->_GetCaretPos(), (cint)pTextBox->GetPosition().top + 2);
+			//::ShowCaret(mea.pWindow->GetWindowHandle());
+			pTextBox->Update();
+			//pTextBox->ShowTheCaret();
 		}
 
 		//if (TempState == Normal) Controller::GetpController()->ReleaseDownControl();
 		if (TempState != pTextBox->GetState())
 		{
 			pTextBox->SetState(TempState);
-
+			pTextBox->Update();
 		}
-		pTextBox->Update();
+		
 
 	}
 
-	void SingleLineTextBoxEventHandler::RightButtonDown(MouseEventArgs)
+	void SingleLineTextBoxEventHandler::RightButtonDown(MouseEventArgs mea)
 	{
+		
 		return;
 	}
 
-	void SingleLineTextBoxEventHandler::RightButtonUp(MouseEventArgs)
+	void SingleLineTextBoxEventHandler::RightButtonUp(MouseEventArgs mea)
 	{
+		pTextBox->ShowMenu(mea.pWindow);
 		return;
 	}
 
@@ -1944,9 +2221,9 @@ namespace cibbonui
 		{
 			if (!iswprint(mea.DownKey)) return;
 			pTextBox->InsertChar(std::wstring{ (wchar_t)mea.DownKey });
-			::HideCaret(pTextBox->GetpOwnerWindow()->GetWindowHandle());
+			//::HideCaret(pTextBox->GetpOwnerWindow()->GetWindowHandle());
 			::SetCaretPos(pTextBox->_GetCaretPos(), (cint)pTextBox->GetPosition().top + 2);
-			::ShowCaret(pTextBox->GetpOwnerWindow()->GetWindowHandle());
+			//::ShowCaret(pTextBox->GetpOwnerWindow()->GetWindowHandle());
 			pTextBox->StartSelect();
 			pTextBox->Update();
 			return;
@@ -1961,7 +2238,11 @@ namespace cibbonui
 				pTextBox->DecreaseCurrentStringPos();
 				pTextBox->StartSelect();
 				pTextBox->ResetCurrentCaretPos();
+				//::HideCaret(mea.pWindow->GetWindowHandle());
 				::SetCaretPos(pTextBox->_GetCaretPos(), (cint)pTextBox->GetPosition().top + 2);
+				//::ShowCaret(mea.pWindow->GetWindowHandle());
+				//pTextBox->Update();
+				return;
 				break;
 			}
 			case VK_CONTROL:
@@ -1978,6 +2259,7 @@ namespace cibbonui
 				pTextBox->StartSelect();
 				pTextBox->ResetCurrentCaretPos();
 				::SetCaretPos(pTextBox->_GetCaretPos(), (cint)pTextBox->GetPosition().top + 2);
+				return;
 				break;
 			}
 			case VK_BACK:
@@ -2081,9 +2363,11 @@ namespace cibbonui
 		TotalOffset(0),
 		StringPixel(1),
 		BeginStringPos(-1),
-		UndoPos(0)
+		UndoPos(0),
+		pMenu(new CUIMenu(IDR_PASTEMENU))
 	{
 		RealText.reserve(1024);
+		StringPixel.reserve(1024);
 		Add(pBorderFactory->GetNormalBorder());
 		FactoriesCreator::GetFactoriesCreator()->GetpDwFactory()->CreateTextFormat
 			(L"Microsoft YaHei",
@@ -2091,11 +2375,15 @@ namespace cibbonui
 			DWRITE_FONT_WEIGHT_NORMAL,
 			DWRITE_FONT_STYLE_NORMAL,
 			DWRITE_FONT_STRETCH_NORMAL,
-			13,
+			10.f * 96.f / 72.f,
 			L"",
 			&pFormat);
-		pFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_FAR);
+		pFormat->SetParagraphAlignment(ParagraphAlignmentCenter);
 		pFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+		pMenu->InsertItem(ID_UNDO);
+		pMenu->InsertItem(ID_CUT);
+		pMenu->InsertItem(ID_COPY);
+		pMenu->InsertItem(ID_PASTE);
 
 	}
 
@@ -2108,12 +2396,14 @@ namespace cibbonui
 
 	void SingleLineTextBox::Draw(Context* p)
 	{
+		
 		UpdateState();
 		for (auto pl : Leaves)
 		{
 			pl->Draw(p);
 		}
 		if (RealText.length() == 0) return;
+		if (!pLayout) return;
 		pOwnerWindow->GetpRenderManager()->PushClip(Position);
 		if (TestFocus())
 		{
@@ -2121,16 +2411,19 @@ namespace cibbonui
 			pWhite = p->pWindow->GetpRenderManager()->GetBrush(0xffffff);
 			pBlack = p->pWindow->GetpRenderManager()->GetBrush(0);
 			if (_GetStringDistance() != 0)
-				pOwnerWindow->GetpRenderManager()->NormalFillRect(cuiRect((float)_GetBeginCaretPos(), Position.top + 2, (float)_GetEndCaretPos(), Position.bottom), 0x3399ff);
+				pOwnerWindow->GetpRenderManager()->NormalFillRect(cuiRect((float)_GetBeginCaretPos(), Position.top + 2 , 
+				(float)_GetEndCaretPos(), 
+				Position.top+pFormat->GetFontSize()* FactoriesCreator::GetFactoriesCreator()->GetFontHeight()+2 ),
+				0x3399ff);
 			pLayout->SetDrawingEffect(pWhite, dtr);
-			pOwnerWindow->GetpRenderManager()->RenderText(cuiPoint(Position.left - TotalOffset + 2, Position.top + 2), pLayout, pFormat);
+			pOwnerWindow->GetpRenderManager()->RenderText(cuiPoint(Position.left - TotalOffset + 2, Position.top +5), pLayout, pFormat);
 			dtr = { 0, RealText.length() };
 			pLayout->SetDrawingEffect(pBlack, dtr);
 
 		}
 		else
 		{
-			pOwnerWindow->GetpRenderManager()->RenderText(cuiPoint(Position.left - TotalOffset + 2, Position.top + 2), pLayout, pFormat);
+			pOwnerWindow->GetpRenderManager()->RenderText(cuiPoint(Position.left - TotalOffset + 2, Position.top + 5), pLayout, pFormat);
 		}
 		pOwnerWindow->GetpRenderManager()->PopClip();
 	}
@@ -2181,6 +2474,7 @@ namespace cibbonui
 
 	void SingleLineTextBox::InsertChar(const std::wstring& iChar, bool Undo)
 	{
+		if (iChar.empty()) return;
 		if (_GetStringDistance() == 0)
 
 		{
@@ -2194,20 +2488,23 @@ namespace cibbonui
 		}
 		else
 		{
+			auto temp = RealText.substr(_GetBeginStringPos() + 1, _GetStringDistance());
+			if (Undo)
+			{
+				InitFrame(deletechar, temp);
+			}
 			RealText.replace(_GetBeginStringPos() + 1, _GetStringDistance(), iChar);
-			CurrentStringPos += iChar.length();
+			CurrentStringPos = _GetBeginStringPos() + iChar.length();
 			StartSelect();
 			if (Undo)
 			{
-				InitFrame(replacechar, iChar);
+				InitFrame(addchar, iChar);
 			}
 		}
 			
 		
 		/*else*/
-			
-		if (Undo)
-			UpdateString();
+		UpdateString();
 		ResetCurrentCaretPos();
 	}
 	void SingleLineTextBox::DeleteChar(bool Undo)
@@ -2244,6 +2541,12 @@ namespace cibbonui
 
 	void SingleLineTextBox::UpdateString()
 	{
+		auto x = RealText.find(L"\r\n");
+		while (x!=std::wstring::npos)
+		{
+			RealText.erase(x, 1);
+			x = RealText.find(L"\r\n",x);
+		}
 		Free(pLayout);
 		FactoriesCreator::GetFactoriesCreator()->GetpDwFactory()->CreateTextLayout
 			(
@@ -2251,7 +2554,7 @@ namespace cibbonui
 			RealText.length(),
 			pFormat,
 			std::numeric_limits<float>::infinity(),
-			(FLOAT)FactoriesCreator::GetFactoriesCreator()->GetFontHeight(),
+			10.f * 96.f / 72.f,
 			&pLayout
 			);
 		StringPixel.clear();
@@ -2290,8 +2593,6 @@ namespace cibbonui
 	{
 		if (dist + TotalOffset -(cint) Position.left - 2 > StringPixel.back()) return StringPixel.back() + (cint)Position.left + 2 - TotalOffset;
 		auto it = std::lower_bound(StringPixel.begin(), StringPixel.end(), dist + TotalOffset - Position.left - 2);
-		//it = (std::max)(it, StringPixel.begin());
-		//if (it != StringPixel.begin()) it -= 1;
 		return *it - TotalOffset + (cint)Position.left + 2;
 	}
 
@@ -2312,16 +2613,7 @@ namespace cibbonui
 			BeginStringPos = x.ChangePos;
 			CurrentStringPos = x.ChangePos + x.ChangeString.length();
 		}
-		if (x.State == replacechar)
-		{
-			BeginStringPos = (std::max)((cint)(x.ChangePos + 1 - x.ChangeString.length()), -1);
-			CurrentStringPos = x.ChangePos + 1;
-			DeleteChar(false);
-			BeginStringPos = CurrentStringPos = x.ChangePos;
-			InsertChar(x.ChangeString, false);
-			BeginStringPos = x.ChangePos;
-			CurrentStringPos = x.ChangePos + x.ChangeString.length();
-		}
+		
 		UndoPos--;
 		UpdateString();
 		ResetCurrentCaretPos();

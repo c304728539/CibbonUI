@@ -75,10 +75,14 @@
   <ItemGroup>
     <ClInclude Include="CUIBase.h" />
     <ClInclude Include="CUIWindows.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CUIBase.cpp" />
     <ClCompile Include="CUIWindows.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
